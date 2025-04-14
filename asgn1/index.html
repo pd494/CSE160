@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>WebGL Paint Application</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+      }
+      canvas {
+        border: 1px solid #000;
+        display: block;
+        margin-bottom: 20px;
+      }
+      .color-controls {
+        margin-bottom: 20px;
+      }
+      .slider-container {
+        margin: 10px 0;
+        display: flex;
+        align-items: center;
+      }
+      .slider-container label {
+        width: 50px;
+        display: inline-block;
+      }
+      .slider-container input {
+        margin: 0 10px;
+      }
+    </style>
+  </head>
+
+  <body onload="main()">
+    <h1>WebGL Paint Application</h1>
+    
+    <canvas id="webgl" width="400" height="400">
+      Please use a browser that supports "canvas"
+    </canvas>
+    
+    <div class="color-controls">
+      <h3>Shape Color:</h3>
+      <div class="color-presets" style="margin-bottom: 15px;">
+        <button id="redBtn" style="background-color: #ff0000; color: white; margin-right: 10px; padding: 5px 15px;">Red</button>
+        <button id="greenBtn" style="background-color: #00ff00; color: black; margin-right: 10px; padding: 5px 15px;">Green</button>
+        <button id="blueBtn" style="background-color: #0000ff; color: white; padding: 5px 15px;">Blue</button>
+      </div>
+      
+      <div class="slider-container">
+        <label for="redSlider">Red:</label>
+        <input type="range" id="redSlider" min="0" max="1" step="0.01" value="1">
+        <span id="redValue">1.00</span>
+      </div>
+      
+      <div class="slider-container">
+        <label for="greenSlider">Green:</label>
+        <input type="range" id="greenSlider" min="0" max="1" step="0.01" value="0">
+        <span id="greenValue">0.00</span>
+      </div>
+      
+      <div class="slider-container">
+        <label for="blueSlider">Blue:</label>
+        <input type="range" id="blueSlider" min="0" max="1" step="0.01" value="0">
+        <span id="blueValue">0.00</span>
+      </div>
+    </div>
+
+    <div class="size-controls" style="margin: 20px 0;">
+      <h3>Point Size:</h3>
+      <div class="slider-container">
+        <label for="sizeSlider">Size:</label>
+        <input type="range" id="sizeSlider" min="1" max="50" step="1" value="10">
+        <span id="sizeValue">10</span>
+      </div>
+      
+      <h3>Circle Segments:</h3>
+      <div class="slider-container">
+        <label for="segmentsSlider">Segments:</label>
+        <input type="range" id="segmentsSlider" min="3" max="36" step="1" value="10">
+        <span id="segmentsValue">10</span>
+      </div>
+    </div>
+    
+    <div class="canvas-controls" style="margin: 20px 0;">
+      <h3>Drawing Mode:</h3>
+      <button id="pointBtn" style="padding: 8px 16px; background-color: #000000; color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px;">Point</button>
+      <button id="triangleBtn" style="padding: 8px 16px; background-color: #555555; color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px;">Triangle</button>
+      <button id="circleBtn" style="padding: 8px 16px; background-color: #555555; color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px;">Circle</button>
+      <button id="clearBtn" style="padding: 8px 16px; background-color: #f44336; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 10px;">Clear Canvas</button>
+    </div>
+
+    <script src="./lib/webgl-utils.js"></script>
+    <script src="./lib/webgl-debug.js"></script>
+    <script src="./lib/cuon-utils.js"></script>
+    <script src="Point.js"></script>
+    <script src="Triangle.js"></script>
+    <script src="Circle.js"></script>
+    <script src="main.js"></script>
+  </body>
+</html>
