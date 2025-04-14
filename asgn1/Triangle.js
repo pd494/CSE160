@@ -4,24 +4,21 @@
 class Triangle {
   constructor(position, color, size = 0.1) {
     this.type = 'triangle';
-    // Create a right angle triangle at the given position
-    // position is the apex point of the right angle
-    this.position = position;  // [x, y]
-    this.color = color;        // [r, g, b, a]
-    this.size = size;          // Size of the triangle sides
+   
+    this.position = position;  
+    this.color = color;        
+    this.size = size;          
     
-    // Calculate the three vertices of the right angle triangle
     this.vertices = [
-      [position[0], position[1]],  // Right angle apex
-      [position[0] + this.size, position[1]],  // Horizontal point
-      [position[0], position[1] + this.size]   // Vertical point
+      [position[0], position[1]],  
+      [position[0] + this.size, position[1]], 
+      [position[0], position[1] + this.size]   
     ];
     
-    this.vertexBuffer = null;  // Buffer for vertex data
-    this.initVertexBuffer();   // Initialize buffer on creation
+    this.vertexBuffer = null;  
+    this.initVertexBuffer();   
   }
   
-  // Initialize the vertex buffer for this triangle (based on HelloTriangle.js)
   initVertexBuffer() {
     // Create a buffer object
     this.vertexBuffer = gl.createBuffer();

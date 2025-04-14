@@ -3,10 +3,10 @@
 class Circle {
   constructor() {
     this.type = 'circle';
-    this.position = [0.0, 0.0, 0.0]; // Center position
-    this.color = [1.0, 1.0, 1.0, 1.0]; // Default color (white)
-    this.size = 5.0; // Default size
-    this.segments = 10; // Number of segments (triangles) to form the circle
+    this.position = [0.0, 0.0, 0.0]; 
+    this.color = [1.0, 1.0, 1.0, 1.0]; 
+    this.size = 5.0; 
+    this.segments = 10; 
   }
   
   render() {
@@ -14,11 +14,9 @@ class Circle {
     var rgba = this.color;
     var size = this.size;
     
-    // Pass the color of a point to u_FragColor variable
     gl.uniform4f(u_FragColor, rgba[0], rgba[1], rgba[2], rgba[3]);
     
-    // Draw
-    var d = this.size/200.0; // delta (scale factor for size)
+    var d = this.size/200.0; 
     
     let angleStep = 360/this.segments;
     for(var angle = 0; angle < 360; angle=angle+angleStep) {
@@ -30,15 +28,12 @@ class Circle {
       let pt1 = [centerPt[0]+vec1[0], centerPt[1]+vec1[1]];
       let pt2 = [centerPt[0]+vec2[0], centerPt[1]+vec2[1]];
       
-      // Draw a triangle using the center point and two points on the circle
       drawTriangle([xy[0], xy[1], pt1[0], pt1[1], pt2[0], pt2[1]]);
     }
   }
 }
 
-// Helper function to draw a triangle using WebGL
 function drawTriangle(vertices) {
-  // Create a buffer object
   var vertexBuffer = gl.createBuffer();
   if (!vertexBuffer) {
     console.log('Failed to create the buffer object');
