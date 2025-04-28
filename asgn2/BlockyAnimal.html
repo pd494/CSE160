@@ -43,7 +43,7 @@
         <button id="triangleBtn" style="padding: 8px 16px; background-color: #555555; color: white; border: none; border-radius: 4px; cursor: pointer;">Triangle</button>
         <button id="circleBtn" style="padding: 8px 16px; background-color: #555555; color: white; border: none; border-radius: 4px; cursor: pointer;">Circle</button>
         <button id="clearBtn" style="padding: 8px 16px; background-color: #f44336; color: white; border: none; border-radius: 4px; cursor: pointer;">Clear Canvas</button>
-
+        <button id="animToggleBtn" style="padding: 8px 16px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">Animation: ON</button>
       </div>
     </div>
     
@@ -68,6 +68,7 @@
       
       <div style="margin-top: 20px;">
         <h3>Leg Joint Controls:</h3>
+        <h4>Upper Legs (Thighs):</h4>
         <div class="slider-container">
           <label>Front Right Leg:</label>
           <input type="range" id="frontRightLegSlider" min="-45" max="45" value="0" class="slider">
@@ -90,6 +91,56 @@
           <label>Back Left Leg:</label>
           <input type="range" id="backLeftLegSlider" min="-45" max="45" value="0" class="slider">
           <span id="backLeftLegValue">0°</span>
+        </div>
+        
+        <h4>Lower Legs (Calves):</h4>
+        <div class="slider-container">
+          <label>Front Right Calf:</label>
+          <input type="range" id="frontRightCalfSlider" min="-45" max="45" value="0" class="slider">
+          <span id="frontRightCalfValue">0°</span>
+        </div>
+        
+        <div class="slider-container">
+          <label>Front Left Calf:</label>
+          <input type="range" id="frontLeftCalfSlider" min="-45" max="45" value="0" class="slider">
+          <span id="frontLeftCalfValue">0°</span>
+        </div>
+        
+        <div class="slider-container">
+          <label>Back Right Calf:</label>
+          <input type="range" id="backRightCalfSlider" min="-45" max="45" value="0" class="slider">
+          <span id="backRightCalfValue">0°</span>
+        </div>
+        
+        <div class="slider-container">
+          <label>Back Left Calf:</label>
+          <input type="range" id="backLeftCalfSlider" min="-45" max="45" value="0" class="slider">
+          <span id="backLeftCalfValue">0°</span>
+        </div>
+        
+        <h4>Feet (Hooves):</h4>
+        <div class="slider-container">
+          <label>Front Right Foot:</label>
+          <input type="range" id="frontRightFootSlider" min="-30" max="30" value="0" class="slider">
+          <span id="frontRightFootValue">0°</span>
+        </div>
+        
+        <div class="slider-container">
+          <label>Front Left Foot:</label>
+          <input type="range" id="frontLeftFootSlider" min="-30" max="30" value="0" class="slider">
+          <span id="frontLeftFootValue">0°</span>
+        </div>
+        
+        <div class="slider-container">
+          <label>Back Right Foot:</label>
+          <input type="range" id="backRightFootSlider" min="-30" max="30" value="0" class="slider">
+          <span id="backRightFootValue">0°</span>
+        </div>
+        
+        <div class="slider-container">
+          <label>Back Left Foot:</label>
+          <input type="range" id="backLeftFootSlider" min="-30" max="30" value="0" class="slider">
+          <span id="backLeftFootValue">0°</span>
         </div>
       </div>
       

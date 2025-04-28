@@ -52,15 +52,26 @@ var g_frontLeftCalfAngle = 0;   // Front left calf joint angle
 var g_backRightCalfAngle = 0;   // Back right calf joint angle
 var g_backLeftCalfAngle = 0;    // Back left calf joint angle
 
+// Foot joint angles
+var g_frontRightFootAngle = 0;  // Front right foot joint angle
+var g_frontLeftFootAngle = 0;   // Front left foot joint angle
+var g_backRightFootAngle = 0;   // Back right foot joint angle
+var g_backLeftFootAngle = 0;    // Back left foot joint angle
+
 // Drawing mode variables
 var currentDrawingMode = 'point';  // Default drawing mode: 'point', 'triangle', or 'circle'
 
 // Animation control
-var animationRunning = false;
+var animationRunning = true; // Default to running
 var animationId = null;
 
 // Global time variable for animation
 var g_time = 0;
+
+// Animation angles - these will be updated by updateAnimationAngles()
+var g_rightLegAnimAngle = 0;
+var g_rightCalfAnimAngle = 0;
+var g_rightFootAnimAngle = 0;
 
 function main() {
   // Setup WebGL context
@@ -81,6 +92,38 @@ function main() {
   // Register event handlers
   canvas.onmousedown = click;
   canvas.onmousemove = drag;
+  
+  // Add event listener for animation toggle button
+  document.getElementById('animToggleBtn').addEventListener('click', function() {
+    animationRunning = !animationRunning;
+    this.textContent = animationRunning ? 'Animation: ON' : 'Animation: OFF';
+    this.style.backgroundColor = animationRunning ? '#4CAF50' : '#555555';
+  });
+  
+  // Add event listeners for foot sliders
+  document.getElementById('frontRightFootSlider').addEventListener('input', function() {
+    g_frontRightFootAngle = parseFloat(this.value);
+    document.getElementById('frontRightFootValue').textContent = this.value + '°';
+    // No need to call renderScene, tick will handle it
+  });
+  
+  document.getElementById('frontLeftFootSlider').addEventListener('input', function() {
+    g_frontLeftFootAngle = parseFloat(this.value);
+    document.getElementById('frontLeftFootValue').textContent = this.value + '°';
+    // No need to call renderScene, tick will handle it
+  });
+  
+  document.getElementById('backRightFootSlider').addEventListener('input', function() {
+    g_backRightFootAngle = parseFloat(this.value);
+    document.getElementById('backRightFootValue').textContent = this.value + '°';
+    // No need to call renderScene, tick will handle it
+  });
+  
+  document.getElementById('backLeftFootSlider').addEventListener('input', function() {
+    g_backLeftFootAngle = parseFloat(this.value);
+    document.getElementById('backLeftFootValue').textContent = this.value + '°';
+    // No need to call renderScene, tick will handle it
+  });
 
   document.getElementById('cameraAngleSlider').addEventListener('input', function() { 
     g_globalAngle = parseFloat(this.value); 
@@ -428,113 +471,221 @@ function renderScene() {
   // FRONT RIGHT LEG - Top half (yellow) - Thigh
   var frontRightLegMatrix = new Matrix4(legsBaseMatrix);
   frontRightLegMatrix.translate(0.1, -0.15, 0.18);    // Position at front right
-  // Add a small animation to the right leg (a little kick)
-  // Use the slider value as the base position and add animation on top
-  // The animationOffset will cause a small kicking motion
-  var animationOffset = Math.sin(g_time * 0.05) * 10; // 10 degree amplitude
-  var totalRightLegAngle = parseFloat(g_frontRightLegAngle) + animationOffset;
-  frontRightLegMatrix.rotate(totalRightLegAngle, 1, 0, 0); // Combine slider value with animation
-  var upperLegTransform = new Matrix4(frontRightLegMatrix); // Save transform state for lower segment
+  
+  // Apply leg rotation based on slider value and animation angle if enabled
+  var totalRightLegAngle = parseFloat(g_frontRightLegAngle);
+  
+  // If animation is running, add the animation angle to the base position
+  if (animationRunning) {
+    totalRightLegAngle += g_rightLegAnimAngle;
+  }
+  
+  // Apply the thigh rotation - first level in hierarchy
+  frontRightLegMatrix.rotate(totalRightLegAngle, 1, 0, 0);
+  
+  // Save the thigh transform state before scaling (for use by the calf)
+  var thighTransform = new Matrix4(frontRightLegMatrix); 
+  
+  // Now scale and draw the thigh
   frontRightLegMatrix.scale(0.06, 0.3, 0.06);       // Scale for thigh
   drawCube(frontRightLegMatrix, [1.0, 0.8, 0.0, 1.0]); // Same yellow as body
 
   // FRONT RIGHT LOWER LEG - Bottom half - Calf
-  var lowerRightLegMatrix = new Matrix4(upperLegTransform);
-  lowerRightLegMatrix.translate(0.0, -0.3, 0.0);    // Position at knee joint
-  lowerRightLegMatrix.rotate(g_frontRightCalfAngle, 1, 0, 0); // Rotate calf around X-axis based on slider
-  var lowerLegTransform = new Matrix4(lowerRightLegMatrix); // Save transform state for hoof
-  lowerRightLegMatrix.scale(0.06, 0.3, 0.06);       // Scale for calf
-  drawCube(lowerRightLegMatrix, [1.0, 0.8, 0.0, 1.0]); // Yellow color for lower leg
+  // Start with the thigh transform to maintain the hierarchy
+  var calfMatrix = new Matrix4(thighTransform);
+  calfMatrix.translate(0.0, -0.3, 0.0);    // Position at knee joint
+  
+  // Calculate calf rotation with animation if enabled
+  var totalCalfAngle = parseFloat(g_frontRightCalfAngle);
+  if (animationRunning) {
+    totalCalfAngle += g_rightCalfAnimAngle;
+  }
+  
+  // Apply the calf rotation - second level in hierarchy
+  calfMatrix.rotate(totalCalfAngle, 1, 0, 0); 
+  
+  // Save the calf transform state before scaling (for use by the foot)
+  var calfTransform = new Matrix4(calfMatrix);
+  
+  // Now scale and draw the calf
+  calfMatrix.scale(0.06, 0.3, 0.06);       // Scale for calf
+  drawCube(calfMatrix, [1.0, 0.8, 0.0, 1.0]); // Yellow color for lower leg
 
-  // FRONT RIGHT HOOF - directly connected to lower leg
-  var hoofRightMatrix = new Matrix4(lowerLegTransform);
-  hoofRightMatrix.translate(0.0, -0.3, 0.0);        // Position at ankle joint
-  hoofRightMatrix.scale(0.06, 0.05, 0.07);          // Scale for hoof
-  drawCube(hoofRightMatrix, [1.0, 0.8, 0.0, 1.0]);   // Yellow hoof
+  // FRONT RIGHT FOOT (HOOF) - third level in hierarchy
+  // Start with the calf transform to maintain the hierarchy
+  var footMatrix = new Matrix4(calfTransform);
+  footMatrix.translate(0.0, -0.3, 0.0);        // Position at ankle joint
+  
+  // Calculate foot rotation with animation if enabled
+  var totalFootAngle = parseFloat(g_frontRightFootAngle);
+  if (animationRunning) {
+    totalFootAngle += g_rightFootAnimAngle;
+  }
+  
+  // Apply the foot rotation - third level in hierarchy
+  footMatrix.rotate(totalFootAngle, 1, 0, 0);
+  
+  // Scale and draw the foot/hoof
+  footMatrix.scale(0.06, 0.05, 0.07);          // Scale for hoof
+  drawCube(footMatrix, [1.0, 0.8, 0.0, 1.0]);   // Yellow hoof
 
 
 
   // FRONT LEFT LEG - Top half (yellow) - Thigh
   var frontLeftLegMatrix = new Matrix4(legsBaseMatrix);
   frontLeftLegMatrix.translate(-0.1, -0.15, 0.18);   // Position at front left
+  
+  // Apply leg rotation based on slider value
   frontLeftLegMatrix.rotate(g_frontLeftLegAngle, 1, 0, 0); // Rotate thigh around X-axis based on slider
-  var leftLegTransform = new Matrix4(frontLeftLegMatrix); // Save transform state for lower segment
+  
+  // Save the thigh transform state before scaling (for use by the calf)
+  var leftThighTransform = new Matrix4(frontLeftLegMatrix);
+  
+  // Now scale and draw the thigh
   frontLeftLegMatrix.scale(0.06, 0.3, 0.06);        // Scale for thigh
   drawCube(frontLeftLegMatrix, [1.0, 0.8, 0.0, 1.0]); // Same yellow as body
 
   // FRONT LEFT LOWER LEG - Bottom half - Calf
-  var lowerLeftLegMatrix = new Matrix4(leftLegTransform);
-  lowerLeftLegMatrix.translate(0.0, -0.3, 0.0);      // Position at knee joint
-  lowerLeftLegMatrix.rotate(g_frontLeftCalfAngle, 1, 0, 0); // Rotate calf around X-axis based on slider
-  var lowerLeftTransform = new Matrix4(lowerLeftLegMatrix); // Save transform state for hoof
-  lowerLeftLegMatrix.scale(0.06, 0.3, 0.06);        // Scale for calf
-  drawCube(lowerLeftLegMatrix, [1.0, 0.8, 0.0, 1.0]); // Yellow color
+  // Start with the thigh transform to maintain the hierarchy
+  var leftCalfMatrix = new Matrix4(leftThighTransform);
+  leftCalfMatrix.translate(0.0, -0.3, 0.0);      // Position at knee joint
+  
+  // Apply the calf rotation
+  leftCalfMatrix.rotate(g_frontLeftCalfAngle, 1, 0, 0); // Rotate calf around X-axis based on slider
+  
+  // Save the calf transform state before scaling (for use by the foot)
+  var leftCalfTransform = new Matrix4(leftCalfMatrix);
+  
+  // Now scale and draw the calf
+  leftCalfMatrix.scale(0.06, 0.3, 0.06);        // Scale for calf
+  drawCube(leftCalfMatrix, [1.0, 0.8, 0.0, 1.0]); // Yellow color
 
-  // FRONT LEFT HOOF - directly connected to lower leg
-  var hoofLeftMatrix = new Matrix4(lowerLeftTransform);
-  hoofLeftMatrix.translate(0.0, -0.3, 0.0);         // Position at ankle joint
-  hoofLeftMatrix.scale(0.06, 0.05, 0.07);           // Scale for hoof
-  drawCube(hoofLeftMatrix, [1.0, 0.8, 0.0, 1.0]);    // Yellow hoof
+  // FRONT LEFT FOOT (HOOF) - third level in hierarchy
+  // Start with the calf transform to maintain the hierarchy
+  var leftFootMatrix = new Matrix4(leftCalfTransform);
+  leftFootMatrix.translate(0.0, -0.3, 0.0);         // Position at ankle joint
+  
+  // Apply the foot rotation
+  leftFootMatrix.rotate(g_frontLeftFootAngle, 1, 0, 0); // Rotate foot around X-axis based on slider
+  
+  // Scale and draw the foot/hoof
+  leftFootMatrix.scale(0.06, 0.05, 0.07);           // Scale for hoof
+  drawCube(leftFootMatrix, [1.0, 0.8, 0.0, 1.0]);    // Yellow hoof
 
 
 
   // BACK RIGHT LEG - Top half (yellow) - Thigh
   var backRightLegMatrix = new Matrix4(backLegsBaseMatrix);
   backRightLegMatrix.translate(0.1, -0.15, -0.1);    // Position at back right, connected to back body extension
+  
+  // Apply leg rotation based on slider value
   backRightLegMatrix.rotate(g_backRightLegAngle, 1, 0, 0); // Rotate thigh around X-axis based on slider
-  var backRightTransform = new Matrix4(backRightLegMatrix); // Save transform state for lower leg
+  
+  // Save the thigh transform state before scaling (for use by the calf)
+  var backRightThighTransform = new Matrix4(backRightLegMatrix);
+  
+  // Now scale and draw the thigh
   backRightLegMatrix.scale(0.06, 0.3, 0.06);        // Scale for thigh
   drawCube(backRightLegMatrix, [1.0, 0.8, 0.0, 1.0]); // Same yellow as body
 
   // BACK RIGHT LOWER LEG - Bottom half - Calf
-  var backRightLowerMatrix = new Matrix4(backRightTransform);
-  backRightLowerMatrix.translate(0.0, -0.3, 0.0);    // Position at knee joint
-  backRightLowerMatrix.rotate(g_backRightCalfAngle, 1, 0, 0); // Rotate calf around X-axis based on slider
-  var backRightLowerTransform = new Matrix4(backRightLowerMatrix); // Save transform state for hoof
-  backRightLowerMatrix.scale(0.06, 0.3, 0.06);      // Scale for calf
-  drawCube(backRightLowerMatrix, [1.0, 0.8, 0.0, 1.0]); // Yellow color
+  // Start with the thigh transform to maintain the hierarchy
+  var backRightCalfMatrix = new Matrix4(backRightThighTransform);
+  backRightCalfMatrix.translate(0.0, -0.3, 0.0);    // Position at knee joint
+  
+  // Apply the calf rotation
+  backRightCalfMatrix.rotate(g_backRightCalfAngle, 1, 0, 0); // Rotate calf around X-axis based on slider
+  
+  // Save the calf transform state before scaling (for use by the foot)
+  var backRightCalfTransform = new Matrix4(backRightCalfMatrix);
+  
+  // Now scale and draw the calf
+  backRightCalfMatrix.scale(0.06, 0.3, 0.06);      // Scale for calf
+  drawCube(backRightCalfMatrix, [1.0, 0.8, 0.0, 1.0]); // Yellow color
 
-  // BACK RIGHT HOOF - directly connected to lower leg
-  var backRightHoofMatrix = new Matrix4(backRightLowerTransform);
-  backRightHoofMatrix.translate(0.0, -0.3, 0.0);     // Position at ankle joint
-  backRightHoofMatrix.scale(0.06, 0.05, 0.07);      // Scale for hoof
-  drawCube(backRightHoofMatrix, [1.0, 0.8, 0.0, 1.0]); // Yellow hoof
+  // BACK RIGHT FOOT (HOOF) - third level in hierarchy
+  // Start with the calf transform to maintain the hierarchy
+  var backRightFootMatrix = new Matrix4(backRightCalfTransform);
+  backRightFootMatrix.translate(0.0, -0.3, 0.0);     // Position at ankle joint
+  
+  // Apply the foot rotation
+  backRightFootMatrix.rotate(g_backRightFootAngle, 1, 0, 0); // Rotate foot around X-axis based on slider
+  
+  // Scale and draw the foot/hoof
+  backRightFootMatrix.scale(0.06, 0.05, 0.07);      // Scale for hoof
+  drawCube(backRightFootMatrix, [1.0, 0.8, 0.0, 1.0]); // Yellow hoof
 
 
 
   // BACK LEFT LEG - Top half (yellow) - Thigh
   var backLeftLegMatrix = new Matrix4(backLegsBaseMatrix);
   backLeftLegMatrix.translate(-0.1, -0.15, -0.1);    // Position at back left, connected to back body extension
+  
+  // Apply leg rotation based on slider value
   backLeftLegMatrix.rotate(g_backLeftLegAngle, 1, 0, 0); // Rotate thigh around X-axis based on slider
-  var backLeftTransform = new Matrix4(backLeftLegMatrix); // Save transform state for lower leg
+  
+  // Save the thigh transform state before scaling (for use by the calf)
+  var backLeftThighTransform = new Matrix4(backLeftLegMatrix);
+  
+  // Now scale and draw the thigh
   backLeftLegMatrix.scale(0.06, 0.3, 0.06);         // Scale for thigh
   drawCube(backLeftLegMatrix, [1.0, 0.8, 0.0, 1.0]); // Same yellow as body
 
   // BACK LEFT LOWER LEG - Bottom half - Calf
-  var backLeftLowerMatrix = new Matrix4(backLeftTransform);
-  backLeftLowerMatrix.translate(0.0, -0.3, 0.0);     // Position at knee joint
-  backLeftLowerMatrix.rotate(g_backLeftCalfAngle, 1, 0, 0); // Rotate calf around X-axis based on slider
-  var backLeftLowerTransform = new Matrix4(backLeftLowerMatrix); // Save transform state for hoof
-  backLeftLowerMatrix.scale(0.06, 0.3, 0.06);       // Scale for calf
-  drawCube(backLeftLowerMatrix, [1.0, 0.8, 0.0, 1.0]); // Yellow color
+  // Start with the thigh transform to maintain the hierarchy
+  var backLeftCalfMatrix = new Matrix4(backLeftThighTransform);
+  backLeftCalfMatrix.translate(0.0, -0.3, 0.0);     // Position at knee joint
+  
+  // Apply the calf rotation
+  backLeftCalfMatrix.rotate(g_backLeftCalfAngle, 1, 0, 0); // Rotate calf around X-axis based on slider
+  
+  // Save the calf transform state before scaling (for use by the foot)
+  var backLeftCalfTransform = new Matrix4(backLeftCalfMatrix);
+  
+  // Now scale and draw the calf
+  backLeftCalfMatrix.scale(0.06, 0.3, 0.06);       // Scale for calf
+  drawCube(backLeftCalfMatrix, [1.0, 0.8, 0.0, 1.0]); // Yellow color
 
-  // BACK LEFT HOOF - directly connected to lower leg
-  var backLeftHoofMatrix = new Matrix4(backLeftLowerTransform);
-  backLeftHoofMatrix.translate(0.0, -0.3, 0.0);      // Position at ankle joint
-  backLeftHoofMatrix.scale(0.06, 0.05, 0.07);       // Scale for hoof
-  drawCube(backLeftHoofMatrix, [1.0, 0.8, 0.0, 1.0]); // Yellow hoof
+  // BACK LEFT FOOT (HOOF) - third level in hierarchy
+  // Start with the calf transform to maintain the hierarchy
+  var backLeftFootMatrix = new Matrix4(backLeftCalfTransform);
+  backLeftFootMatrix.translate(0.0, -0.3, 0.0);      // Position at ankle joint
+  
+  // Apply the foot rotation
+  backLeftFootMatrix.rotate(g_backLeftFootAngle, 1, 0, 0); // Rotate foot around X-axis based on slider
+  
+  // Scale and draw the foot/hoof
+  backLeftFootMatrix.scale(0.06, 0.05, 0.07);       // Scale for hoof
+  drawCube(backLeftFootMatrix, [1.0, 0.8, 0.0, 1.0]); // Yellow hoof
 
 
 
   // No random spots - they've been removed as requested
 }
 
+// Function to update animation angles based on time
+function updateAnimationAngles() {
+  if (animationRunning) {
+    // Update the global time variable
+    g_time++;
+    
+    // Calculate animation for each part of the right leg (kicking motion)
+    g_rightLegAnimAngle = Math.sin(g_time * 0.05) * 10; // 10 degree amplitude for thigh
+    
+    // Calf animation with slight phase offset for natural movement
+    g_rightCalfAnimAngle = Math.sin((g_time * 0.05) + 0.5) * 15; // 15 degree amplitude for calf
+    
+    // Foot animation with another phase offset
+    g_rightFootAnimAngle = Math.sin((g_time * 0.05) + 1.0) * 8; // 8 degree amplitude for foot
+  }
+}
+
 // Animation tick function - called every frame
 function tick() {
-  // Update the global time variable
-  g_time++;
+  // Update animation angles based on current time
+  updateAnimationAngles();
   
-  // Render the scene with the updated time
+  // Render the scene with the updated animation values
   renderScene();
   
   // Request the next animation frame
