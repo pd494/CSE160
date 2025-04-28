@@ -26,52 +26,80 @@ var FSHADER_SOURCE =
   '}\n';
 
 // Global Variables
-var gl;              // WebGL context
-var canvas;          // Drawing canvas
-var a_Position;      // Shader variable: vertex position
-var u_FragColor;    // Shader variable: fragment color
-var u_PointSize;    // Shader variable: point size
-var u_ModelMatrix;  // Shader variable: model matrix
-var u_GlobalRotateMatrix; // Shader variable: global rotation matrix
-var g_globalAngle = 0;  // Global rotation angle controlled by slider
-var g_global = 5;   // Initial camera angle
-var currentColor = [1.0, 0.0, 0.0, 1.0];  // Current drawing color (red by default)
-var currentSize = 10;  // Current point size (default: 10)
-var currentSegments = 10;  // Current number of segments for circles (default: 10)
+var gl;              
+var canvas;          
+var a_Position;      
+var u_FragColor;    
+var u_PointSize;    
+var u_ModelMatrix;  
+var u_GlobalRotateMatrix;
+var g_globalAngle = 0;  
+var g_globalXAngle = 0; 
+var g_global = 5;   
+
+// Mouse tracking variables
+var g_isDragging = false;
+var g_lastX = -1;
+var g_lastY = -1;
+var currentColor = [1.0, 0.0, 0.0, 1.0];
+var currentSize = 10;  
+var currentSegments = 10;  
 
 // Joint angle variables for legs
 // Upper leg (thigh) joint angles
-var g_frontRightLegAngle = 0;  // Front right leg joint angle
-var g_frontLeftLegAngle = 0;   // Front left leg joint angle
-var g_backRightLegAngle = 0;   // Back right leg joint angle
-var g_backLeftLegAngle = 0;    // Back left leg joint angle
+var g_frontRightLegAngle = 0;  
+var g_frontLeftLegAngle = 0;   
+var g_backRightLegAngle = 0;   
+var g_backLeftLegAngle = 0;    
 
 // Lower leg (calf) joint angles
-var g_frontRightCalfAngle = 0;  // Front right calf joint angle
-var g_frontLeftCalfAngle = 0;   // Front left calf joint angle
-var g_backRightCalfAngle = 0;   // Back right calf joint angle
-var g_backLeftCalfAngle = 0;    // Back left calf joint angle
+var g_frontRightCalfAngle = 0;  
+var g_frontLeftCalfAngle = 0;   
+var g_backRightCalfAngle = 0;   
+var g_backLeftCalfAngle = 0;    
 
 // Foot joint angles
-var g_frontRightFootAngle = 0;  // Front right foot joint angle
-var g_frontLeftFootAngle = 0;   // Front left foot joint angle
-var g_backRightFootAngle = 0;   // Back right foot joint angle
-var g_backLeftFootAngle = 0;    // Back left foot joint angle
+var g_frontRightFootAngle = 0;    
+var g_frontLeftFootAngle = 0;   
+var g_backRightFootAngle = 0;   
+var g_backLeftFootAngle = 0;    
 
 // Drawing mode variables
-var currentDrawingMode = 'point';  // Default drawing mode: 'point', 'triangle', or 'circle'
+var currentDrawingMode = 'point';  
+
 
 // Animation control
-var animationRunning = true; // Default to running
+var animationRunning = true; 
 var animationId = null;
 
 // Global time variable for animation
 var g_time = 0;
 
+// Poke animation variables
+var g_isPokeAnimating = false;     
+var g_pokeAnimTime = 0;       
+var g_pokeAnimDuration = 60;  
+
 // Animation angles - these will be updated by updateAnimationAngles()
+// Leg animation variables
 var g_rightLegAnimAngle = 0;
 var g_rightCalfAnimAngle = 0;
 var g_rightFootAnimAngle = 0;
+var g_leftLegAnimAngle = 0;
+var g_leftCalfAnimAngle = 0;
+var g_leftFootAnimAngle = 0;
+var g_backRightLegAnimAngle = 0;
+var g_backRightCalfAnimAngle = 0;
+var g_backRightFootAnimAngle = 0;
+var g_backLeftLegAnimAngle = 0;
+var g_backLeftCalfAnimAngle = 0;
+var g_backLeftFootAnimAngle = 0;
+
+// Head and body part animation variables
+var g_headAnimAngle = 0;
+var g_neckAnimAngle = 0;
+var g_tailAnimAngle = 0;
+var g_bodyAnimOffset = 0;
 
 function main() {
   // Setup WebGL context
@@ -90,8 +118,9 @@ function main() {
   requestAnimationFrame(tick);
   
   // Register event handlers
-  canvas.onmousedown = click;
-  canvas.onmousemove = drag;
+  canvas.onmousedown = mouseDown;
+  canvas.onmouseup = mouseUp;
+  canvas.onmousemove = mouseMove;
   
   // Add event listener for animation toggle button
   document.getElementById('animToggleBtn').addEventListener('click', function() {
@@ -104,80 +133,72 @@ function main() {
   document.getElementById('frontRightFootSlider').addEventListener('input', function() {
     g_frontRightFootAngle = parseFloat(this.value);
     document.getElementById('frontRightFootValue').textContent = this.value + '°';
-    // No need to call renderScene, tick will handle it
   });
   
   document.getElementById('frontLeftFootSlider').addEventListener('input', function() {
     g_frontLeftFootAngle = parseFloat(this.value);
     document.getElementById('frontLeftFootValue').textContent = this.value + '°';
-    // No need to call renderScene, tick will handle it
   });
   
   document.getElementById('backRightFootSlider').addEventListener('input', function() {
     g_backRightFootAngle = parseFloat(this.value);
     document.getElementById('backRightFootValue').textContent = this.value + '°';
-    // No need to call renderScene, tick will handle it
   });
   
   document.getElementById('backLeftFootSlider').addEventListener('input', function() {
     g_backLeftFootAngle = parseFloat(this.value);
     document.getElementById('backLeftFootValue').textContent = this.value + '°';
-    // No need to call renderScene, tick will handle it
   });
 
   document.getElementById('cameraAngleSlider').addEventListener('input', function() { 
     g_globalAngle = parseFloat(this.value); 
-    // No need to call renderScene, tick will handle it
   });
+
+  const canvasContainer = document.querySelector('canvas').parentNode;
+  const mouseControlMsg = document.createElement('p');
+  mouseControlMsg.innerHTML = '<strong>Mouse Control:</strong> Click and drag to rotate the giraffe';
+  mouseControlMsg.style.textAlign = 'center';
+  mouseControlMsg.style.marginTop = '5px';
+  canvasContainer.appendChild(mouseControlMsg);
   
-  // Add event listeners for leg angle sliders
   document.getElementById('frontRightLegSlider').addEventListener('input', function() {
     g_frontRightLegAngle = parseFloat(this.value);
     document.getElementById('frontRightLegValue').textContent = this.value + '°';
-    // Just update the display text, renderScene will be called by tick
   });
   
   document.getElementById('frontLeftLegSlider').addEventListener('input', function() {
     g_frontLeftLegAngle = parseFloat(this.value);
     document.getElementById('frontLeftLegValue').textContent = this.value + '°';
-    // No need to call renderScene, tick will handle it
   });
   
   document.getElementById('backRightLegSlider').addEventListener('input', function() {
     g_backRightLegAngle = parseFloat(this.value);
     document.getElementById('backRightLegValue').textContent = this.value + '°';
-    // No need to call renderScene, tick will handle it
   });
   
   document.getElementById('backLeftLegSlider').addEventListener('input', function() {
     g_backLeftLegAngle = parseFloat(this.value);
     document.getElementById('backLeftLegValue').textContent = this.value + '°';
-    // No need to call renderScene, tick will handle it
   });
   
-  // Add event listeners for calf angle sliders
   document.getElementById('frontRightCalfSlider').addEventListener('input', function() {
     g_frontRightCalfAngle = parseFloat(this.value);
     document.getElementById('frontRightCalfValue').textContent = this.value + '°';
-    // No need to call renderScene, tick will handle it
   });
   
   document.getElementById('frontLeftCalfSlider').addEventListener('input', function() {
     g_frontLeftCalfAngle = parseFloat(this.value);
     document.getElementById('frontLeftCalfValue').textContent = this.value + '°';
-    // No need to call renderScene, tick will handle it
   });
   
   document.getElementById('backRightCalfSlider').addEventListener('input', function() {
     g_backRightCalfAngle = parseFloat(this.value);
     document.getElementById('backRightCalfValue').textContent = this.value + '°';
-    // No need to call renderScene, tick will handle it
   });
   
   document.getElementById('backLeftCalfSlider').addEventListener('input', function() {
     g_backLeftCalfAngle = parseFloat(this.value);
     document.getElementById('backLeftCalfValue').textContent = this.value + '°';
-    // No need to call renderScene, tick will handle it
   });
   
 
@@ -187,12 +208,10 @@ function main() {
   gl.clearColor(0.0, 0.0, 0.0, 1.0);
   gl.clear(gl.COLOR_BUFFER_BIT);
   
-  // Initialize matrices and point size
   var identityM = new Matrix4();
   gl.uniformMatrix4fv(u_ModelMatrix, false, identityM.elements);
   gl.uniform1f(u_PointSize, currentSize);
   
-  // Render the scene at the end of initialization
   renderScene();
 }
 
@@ -247,14 +266,12 @@ function updateSegments() {
 function clearCanvas() {
   gl.clear(gl.COLOR_BUFFER_BIT);
   
-  // Reset animation if running
   if (animationRunning) {
     cancelAnimationFrame(animationId);
     animationRunning = false;
     animationId = null;
   }
   
-  // Show image container if it exists
   var imageContainer = document.querySelector('div[style*="border: 1px solid #ccc"]');
   if (imageContainer) {
     imageContainer.style.display = 'block';
@@ -293,7 +310,6 @@ function setupWebGL() {
     return false;
   }
 
-  // Get the rendering context for WebGL with preserveDrawingBuffer for better performance
   gl = canvas.getContext("webgl", { preserveDrawingBuffer: true });
   if (!gl) {
     console.log('Failed to get the rendering context for WebGL');
@@ -346,14 +362,37 @@ function connectVariablesToGLSL() {
   return true;
 }
 
-function click(ev) {
-  addPoint(ev);
+function mouseDown(ev) {
+  if (ev.shiftKey) {
+    g_isPokeAnimating = true;
+    g_pokeAnimTime = 0;
+    console.log('Poke animation triggered!');
+    return;
+  }
+  
+  g_isDragging = true;
+  g_lastX = ev.clientX;
+  g_lastY = ev.clientY;
 }
 
-function drag(ev) {
-  if (ev.buttons === 1) {
-    addPoint(ev);
-  }
+function mouseUp(ev) {
+  g_isDragging = false;
+}
+
+function mouseMove(ev) {
+  if (!g_isDragging) return;
+  
+  const dx = ev.clientX - g_lastX;
+  const dy = ev.clientY - g_lastY;
+  
+  g_globalAngle += dx * 0.5;  
+  g_globalXAngle += dy * 0.5; 
+  
+  if (g_globalXAngle > 90) g_globalXAngle = 90;
+  if (g_globalXAngle < -90) g_globalXAngle = -90;
+  
+  g_lastX = ev.clientX;
+  g_lastY = ev.clientY;
 }
 
 function addPoint(ev) {
@@ -397,7 +436,6 @@ function addPoint(ev) {
 
 // Function to draw a cube with a given transformation matrix
 function drawCube(matrix, color) {
-  // Create a cube instance
   var cube = new Cube();
   cube.color = color;
   cube.matrix.set(matrix);
@@ -406,60 +444,124 @@ function drawCube(matrix, color) {
 
 // Function to render the entire scene
 function renderScene() {
-  // Set up the global rotation matrix
-  var globalRotMat = new Matrix4();
-  globalRotMat.rotate(g_globalAngle * 4, 0, 1, 0); // Multiply by 4 to get 0-360 degree rotation
+    var globalRotMat = new Matrix4();
+  globalRotMat.rotate(g_globalXAngle, 1, 0, 0); 
+  globalRotMat.rotate(g_globalAngle * 4, 0, 1, 0); 
   gl.uniformMatrix4fv(u_GlobalRotateMatrix, false, globalRotMat.elements);
   
-  // Clear the canvas with depth buffer
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-  // --- Animal Construction Begins with Proper Connections ---
   
-  // Create matrices for tracking transformations
   var modelMatrix = new Matrix4();  // The model matrix for the main body
   
   // BODY - Start with the body as the root
-  modelMatrix.setTranslate(0.0, 0.0, 0.0);  // Position the body
-  var bodyMatrix = new Matrix4(modelMatrix); // Save the body matrix
-  bodyMatrix.scale(0.25, 0.15, 0.4);       // Shorter in front to align with legs
-  drawCube(bodyMatrix, [1.0, 0.8, 0.0, 1.0]); // Yellow body
+  var bodyY = 0.0;
+  var bodyScale = 1.0;
+  
+  if (animationRunning) {
+    bodyY = g_bodyAnimOffset; 
+  }
+  
+  if (g_isPokeAnimating) {
+    var progress = g_pokeAnimTime / (g_pokeAnimDuration / 2);
+    if (progress > 1) progress = 2 - progress; 
+    
+    bodyY += Math.sin(progress * Math.PI) * 0.1;
+    
+    bodyScale = 1.0 + Math.sin(progress * Math.PI) * 0.15;
+  }
+  
+  modelMatrix.setTranslate(0.0, bodyY + 0.2, 0.0);  
+  modelMatrix.scale(bodyScale, bodyScale, bodyScale); 
+  var bodyMatrix = new Matrix4(modelMatrix); 
+  bodyMatrix.scale(0.25, 0.15, 0.4);       
+  drawCube(bodyMatrix, [1.0, 0.8, 0.0, 1.0]);
   
   // BACK BODY EXTENSION - Connect to all legs
   var backBodyMatrix = new Matrix4(modelMatrix);
-  backBodyMatrix.translate(0.0, 0.0, -0.2);  // Position slightly back from main body
-  backBodyMatrix.scale(0.25, 0.15, 0.22);    // Same width as main body, extended back by 10%
-  drawCube(backBodyMatrix, [1.0, 0.8, 0.0, 1.0]); // Same yellow as body
+  backBodyMatrix.translate(0.0, 0.0, -0.2);  
+  backBodyMatrix.scale(0.25, 0.15, 0.22);    
+  drawCube(backBodyMatrix, [1.0, 0.8, 0.0, 1.0]); 
 
   // NECK - Connects to the body - position at the front of the body
   var neckMatrix = new Matrix4(modelMatrix);
-  neckMatrix.translate(0.0, 0.15, 0.1);       // Move up and slightly forward from body center
-  neckMatrix.rotate(-20, 1, 0, 0);           // Tilt the neck forward a bit
-  var neckTransformMatrix = new Matrix4(neckMatrix); // Save for head positioning
-  neckMatrix.scale(0.08, 0.4, 0.08);         // Scale for neck shape - long and thin
-  drawCube(neckMatrix, [1.0, 0.8, 0.0, 1.0]); // Yellow neck
+  neckMatrix.translate(0.0, 0.15, 0.1);      
+  
+  var neckAngle = -20; 
+  if (animationRunning) {
+    neckAngle += g_neckAnimAngle; 
+  }
+  
+  if (g_isPokeAnimating) {
+    var progress = g_pokeAnimTime / (g_pokeAnimDuration / 2);
+    if (progress > 1) progress = 2 - progress; 
+    
+    neckAngle -= 30 * Math.sin(progress * Math.PI); 
+  }
+  
+  neckMatrix.rotate(neckAngle, 1, 0, 0);      
+  
+  var neckTransformMatrix = new Matrix4(neckMatrix); 
+  neckMatrix.scale(0.08, 0.4, 0.08);         
+  drawCube(neckMatrix, [1.0, 0.8, 0.0, 1.0]); 
 
-  // HEAD - Connects to the top of the neck
   var headMatrix = new Matrix4(neckTransformMatrix);
-  headMatrix.translate(0.0, 0.4, 0.0);         // Move to top of neck
-  // No rotation - head is straight now
-  var headTransformMatrix = new Matrix4(headMatrix); // Save for ears and other features
-  headMatrix.scale(0.12, 0.12, 0.2);          // Head shape - longer in z direction
-  drawCube(headMatrix, [1.0, 0.8, 0.0, 1.0]);  // Yellow head
+  headMatrix.translate(0.0, 0.4, 0.0);         
+  
+  if (animationRunning) {
+    headMatrix.rotate(g_headAnimAngle, 1, 0, 0); 
+  }
+  
+  var headTransformMatrix = new Matrix4(headMatrix); 
+  headMatrix.scale(0.12, 0.12, 0.2);          
+  drawCube(headMatrix, [1.0, 0.8, 0.0, 1.0]);  
+  
+  var bigEyeMatrix = new Matrix4(headTransformMatrix);
+  bigEyeMatrix.translate(0.08, 0.0, 0.12);   
+  bigEyeMatrix.scale(0.06, 0.06, 0.04);     
+  drawCube(bigEyeMatrix, [1.0, 1.0, 1.0, 1.0]);  
+  
+  var bigPupilMatrix = new Matrix4(headTransformMatrix);
+  bigPupilMatrix.translate(0.08, 0.0, 0.15);   
+  bigPupilMatrix.scale(0.03, 0.03, 0.02);     
+  drawCube(bigPupilMatrix, [0.0, 0.0, 0.0, 1.0]);     
+  
+  var leftEyeMatrix = new Matrix4(headTransformMatrix);
+  leftEyeMatrix.translate(-0.05, 0.0, 0.1);    
+  leftEyeMatrix.scale(0.03, 0.03, 0.03);       
+  drawCube(leftEyeMatrix, [1.0, 1.0, 1.0, 1.0]); 
+  
+  var leftPupilMatrix = new Matrix4(headTransformMatrix);
+  leftPupilMatrix.translate(-0.05, 0.0, 0.12);   
+  leftPupilMatrix.scale(0.015, 0.015, 0.01);     
+  drawCube(leftPupilMatrix, [0.0, 0.0, 0.0, 1.0]);  
 
   // TAIL - Connects to the back of the body extension
   var tailMatrix = new Matrix4(modelMatrix);
-  tailMatrix.translate(0.0, 0.05, -0.32);      // Position at the very back of the extended body
-  tailMatrix.rotate(-20, 1, 0, 0);            // Angle the tail downward
-  var tailTransformMatrix = new Matrix4(tailMatrix); // Save for tail tip
-  tailMatrix.scale(0.03, 0.1, 0.03);          // Thin tail
-  drawCube(tailMatrix, [0.8, 0.6, 0.0, 1.0]);  // Brown tail
+  tailMatrix.translate(0.0, 0.05, -0.32);      
+  var tailAngle = -60; 
+  if (animationRunning) {
+    tailMatrix.rotate(g_tailAnimAngle, 0, 1, 0); 
+    tailAngle += Math.abs(g_tailAnimAngle) * 0.2; 
+  }
   
-  // TAIL TIP - small tuft at the end of the tail
+  // Apply the downward angle
+  tailMatrix.rotate(tailAngle, 1, 0, 0);
+  
+  var tailTransformMatrix = new Matrix4(tailMatrix); 
+  tailMatrix.scale(0.03, 0.6, 0.03);          
+  drawCube(tailMatrix, [0.8, 0.6, 0.0, 1.0]);  
+  
+  // TAIL TIP - longer tuft at the end of the tail
   var tailTipMatrix = new Matrix4(tailTransformMatrix);
-  tailTipMatrix.translate(0.0, -0.1, 0.0);     // Move to end of tail (downward now)
-  tailTipMatrix.scale(0.04, 0.04, 0.04);        // Small tuft
-  drawCube(tailTipMatrix, [0.4, 0.3, 0.0, 1.0]); // Dark brown tail tuft
+  tailTipMatrix.translate(0.0, -0.6, 0.0);     
+  
+  if (animationRunning) {
+    tailTipMatrix.rotate(g_tailAnimAngle * 0.5, 0, 1, 0);
+  }
+  
+  tailTipMatrix.scale(0.04, 0.15, 0.04);        
+  drawCube(tailTipMatrix, [0.4, 0.3, 0.0, 1.0]); 
 
   // LEGS
   // Reset to body position for the legs
@@ -480,214 +582,322 @@ function renderScene() {
     totalRightLegAngle += g_rightLegAnimAngle;
   }
   
-  // Apply the thigh rotation - first level in hierarchy
   frontRightLegMatrix.rotate(totalRightLegAngle, 1, 0, 0);
   
-  // Save the thigh transform state before scaling (for use by the calf)
   var thighTransform = new Matrix4(frontRightLegMatrix); 
   
-  // Now scale and draw the thigh
-  frontRightLegMatrix.scale(0.06, 0.3, 0.06);       // Scale for thigh
-  drawCube(frontRightLegMatrix, [1.0, 0.8, 0.0, 1.0]); // Same yellow as body
+  frontRightLegMatrix.scale(0.06, 0.4, 0.06);       
+  drawCube(frontRightLegMatrix, [1.0, 0.8, 0.0, 1.0]); 
 
   // FRONT RIGHT LOWER LEG - Bottom half - Calf
-  // Start with the thigh transform to maintain the hierarchy
   var calfMatrix = new Matrix4(thighTransform);
-  calfMatrix.translate(0.0, -0.3, 0.0);    // Position at knee joint
+  calfMatrix.translate(0.0, -0.4 + 0.05, 0.0);    
   
-  // Calculate calf rotation with animation if enabled
   var totalCalfAngle = parseFloat(g_frontRightCalfAngle);
   if (animationRunning) {
     totalCalfAngle += g_rightCalfAnimAngle;
   }
   
-  // Apply the calf rotation - second level in hierarchy
   calfMatrix.rotate(totalCalfAngle, 1, 0, 0); 
   
-  // Save the calf transform state before scaling (for use by the foot)
   var calfTransform = new Matrix4(calfMatrix);
   
-  // Now scale and draw the calf
-  calfMatrix.scale(0.06, 0.3, 0.06);       // Scale for calf
-  drawCube(calfMatrix, [1.0, 0.8, 0.0, 1.0]); // Yellow color for lower leg
+  calfMatrix.scale(0.06, 0.4, 0.06);       
+  drawCube(calfMatrix, [1.0, 0.8, 0.0, 1.0]); 
 
   // FRONT RIGHT FOOT (HOOF) - third level in hierarchy
-  // Start with the calf transform to maintain the hierarchy
   var footMatrix = new Matrix4(calfTransform);
-  footMatrix.translate(0.0, -0.3, 0.0);        // Position at ankle joint
+  footMatrix.translate(0.0, -0.4 + 0.05, 0.0);        
   
-  // Calculate foot rotation with animation if enabled
   var totalFootAngle = parseFloat(g_frontRightFootAngle);
   if (animationRunning) {
     totalFootAngle += g_rightFootAnimAngle;
   }
   
-  // Apply the foot rotation - third level in hierarchy
   footMatrix.rotate(totalFootAngle, 1, 0, 0);
   
-  // Scale and draw the foot/hoof
-  footMatrix.scale(0.06, 0.05, 0.07);          // Scale for hoof
-  drawCube(footMatrix, [1.0, 0.8, 0.0, 1.0]);   // Yellow hoof
+  footMatrix.scale(0.06, 0.05, 0.07);          
+  drawCube(footMatrix, [1.0, 0.8, 0.0, 1.0]);   
 
 
 
   // FRONT LEFT LEG - Top half (yellow) - Thigh
   var frontLeftLegMatrix = new Matrix4(legsBaseMatrix);
-  frontLeftLegMatrix.translate(-0.1, -0.15, 0.18);   // Position at front left
+  frontLeftLegMatrix.translate(-0.1, -0.15, 0.18);  
   
-  // Apply leg rotation based on slider value
-  frontLeftLegMatrix.rotate(g_frontLeftLegAngle, 1, 0, 0); // Rotate thigh around X-axis based on slider
+  var totalLeftLegAngle = parseFloat(g_frontLeftLegAngle);
+  if (animationRunning) {
+    totalLeftLegAngle += g_leftLegAnimAngle;
+  }
+  frontLeftLegMatrix.rotate(totalLeftLegAngle, 1, 0, 0); 
   
-  // Save the thigh transform state before scaling (for use by the calf)
   var leftThighTransform = new Matrix4(frontLeftLegMatrix);
   
-  // Now scale and draw the thigh
-  frontLeftLegMatrix.scale(0.06, 0.3, 0.06);        // Scale for thigh
-  drawCube(frontLeftLegMatrix, [1.0, 0.8, 0.0, 1.0]); // Same yellow as body
+  frontLeftLegMatrix.scale(0.06, 0.4, 0.06);       
+  drawCube(frontLeftLegMatrix, [1.0, 0.8, 0.0, 1.0]); 
 
   // FRONT LEFT LOWER LEG - Bottom half - Calf
-  // Start with the thigh transform to maintain the hierarchy
   var leftCalfMatrix = new Matrix4(leftThighTransform);
-  leftCalfMatrix.translate(0.0, -0.3, 0.0);      // Position at knee joint
+  leftCalfMatrix.translate(0.0, -0.4 + 0.05, 0.0);      
   
-  // Apply the calf rotation
-  leftCalfMatrix.rotate(g_frontLeftCalfAngle, 1, 0, 0); // Rotate calf around X-axis based on slider
+  var totalLeftCalfAngle = parseFloat(g_frontLeftCalfAngle);
+  if (animationRunning) {
+    totalLeftCalfAngle += g_leftCalfAnimAngle; 
+  }
+  leftCalfMatrix.rotate(totalLeftCalfAngle, 1, 0, 0); 
   
-  // Save the calf transform state before scaling (for use by the foot)
   var leftCalfTransform = new Matrix4(leftCalfMatrix);
   
-  // Now scale and draw the calf
-  leftCalfMatrix.scale(0.06, 0.3, 0.06);        // Scale for calf
-  drawCube(leftCalfMatrix, [1.0, 0.8, 0.0, 1.0]); // Yellow color
+  leftCalfMatrix.scale(0.06, 0.4, 0.06);        
+  drawCube(leftCalfMatrix, [1.0, 0.8, 0.0, 1.0]); 
 
   // FRONT LEFT FOOT (HOOF) - third level in hierarchy
-  // Start with the calf transform to maintain the hierarchy
   var leftFootMatrix = new Matrix4(leftCalfTransform);
-  leftFootMatrix.translate(0.0, -0.3, 0.0);         // Position at ankle joint
+  leftFootMatrix.translate(0.0, -0.4 + 0.05, 0.0);        
   
-  // Apply the foot rotation
-  leftFootMatrix.rotate(g_frontLeftFootAngle, 1, 0, 0); // Rotate foot around X-axis based on slider
+  var totalLeftFootAngle = parseFloat(g_frontLeftFootAngle);
+  if (animationRunning) {
+    totalLeftFootAngle += g_leftFootAnimAngle; 
+  }
+  leftFootMatrix.rotate(totalLeftFootAngle, 1, 0, 0); 
   
-  // Scale and draw the foot/hoof
-  leftFootMatrix.scale(0.06, 0.05, 0.07);           // Scale for hoof
-  drawCube(leftFootMatrix, [1.0, 0.8, 0.0, 1.0]);    // Yellow hoof
+  leftFootMatrix.scale(0.06, 0.05, 0.07);           
+  drawCube(leftFootMatrix, [1.0, 0.8, 0.0, 1.0]);   
 
 
 
   // BACK RIGHT LEG - Top half (yellow) - Thigh
   var backRightLegMatrix = new Matrix4(backLegsBaseMatrix);
-  backRightLegMatrix.translate(0.1, -0.15, -0.1);    // Position at back right, connected to back body extension
+  backRightLegMatrix.translate(0.1, -0.15, -0.1);    
   
-  // Apply leg rotation based on slider value
-  backRightLegMatrix.rotate(g_backRightLegAngle, 1, 0, 0); // Rotate thigh around X-axis based on slider
+  var totalBackRightLegAngle = parseFloat(g_backRightLegAngle);
+  if (animationRunning) {
+    totalBackRightLegAngle += g_backRightLegAnimAngle;
+  }
+  backRightLegMatrix.rotate(totalBackRightLegAngle, 1, 0, 0); 
   
-  // Save the thigh transform state before scaling (for use by the calf)
   var backRightThighTransform = new Matrix4(backRightLegMatrix);
   
-  // Now scale and draw the thigh
-  backRightLegMatrix.scale(0.06, 0.3, 0.06);        // Scale for thigh
-  drawCube(backRightLegMatrix, [1.0, 0.8, 0.0, 1.0]); // Same yellow as body
+  backRightLegMatrix.scale(0.06, 0.4, 0.06);        
+  drawCube(backRightLegMatrix, [1.0, 0.8, 0.0, 1.0]); 
 
   // BACK RIGHT LOWER LEG - Bottom half - Calf
-  // Start with the thigh transform to maintain the hierarchy
   var backRightCalfMatrix = new Matrix4(backRightThighTransform);
-  backRightCalfMatrix.translate(0.0, -0.3, 0.0);    // Position at knee joint
+  backRightCalfMatrix.translate(0.0, -0.4 + 0.05, 0.0);    
   
-  // Apply the calf rotation
-  backRightCalfMatrix.rotate(g_backRightCalfAngle, 1, 0, 0); // Rotate calf around X-axis based on slider
+  var totalBackRightCalfAngle = parseFloat(g_backRightCalfAngle);
+  if (animationRunning) {
+    totalBackRightCalfAngle += g_backRightCalfAnimAngle;
+  }
+  backRightCalfMatrix.rotate(totalBackRightCalfAngle, 1, 0, 0);
   
-  // Save the calf transform state before scaling (for use by the foot)
   var backRightCalfTransform = new Matrix4(backRightCalfMatrix);
   
-  // Now scale and draw the calf
-  backRightCalfMatrix.scale(0.06, 0.3, 0.06);      // Scale for calf
-  drawCube(backRightCalfMatrix, [1.0, 0.8, 0.0, 1.0]); // Yellow color
+  backRightCalfMatrix.scale(0.06, 0.4, 0.06);      
+  drawCube(backRightCalfMatrix, [1.0, 0.8, 0.0, 1.0]); 
 
   // BACK RIGHT FOOT (HOOF) - third level in hierarchy
-  // Start with the calf transform to maintain the hierarchy
   var backRightFootMatrix = new Matrix4(backRightCalfTransform);
-  backRightFootMatrix.translate(0.0, -0.3, 0.0);     // Position at ankle joint
+  backRightFootMatrix.translate(0.0, -0.4 + 0.05, 0.0);     
   
-  // Apply the foot rotation
-  backRightFootMatrix.rotate(g_backRightFootAngle, 1, 0, 0); // Rotate foot around X-axis based on slider
+  var totalBackRightFootAngle = parseFloat(g_backRightFootAngle);
+  if (animationRunning) {
+    totalBackRightFootAngle += g_backRightFootAnimAngle; 
+  }
+  backRightFootMatrix.rotate(totalBackRightFootAngle, 1, 0, 0); 
   
-  // Scale and draw the foot/hoof
-  backRightFootMatrix.scale(0.06, 0.05, 0.07);      // Scale for hoof
-  drawCube(backRightFootMatrix, [1.0, 0.8, 0.0, 1.0]); // Yellow hoof
+  backRightFootMatrix.scale(0.06, 0.05, 0.07);      
+  drawCube(backRightFootMatrix, [1.0, 0.8, 0.0, 1.0]); 
 
 
 
   // BACK LEFT LEG - Top half (yellow) - Thigh
   var backLeftLegMatrix = new Matrix4(backLegsBaseMatrix);
-  backLeftLegMatrix.translate(-0.1, -0.15, -0.1);    // Position at back left, connected to back body extension
+  backLeftLegMatrix.translate(-0.1, -0.15, -0.1);   
   
-  // Apply leg rotation based on slider value
-  backLeftLegMatrix.rotate(g_backLeftLegAngle, 1, 0, 0); // Rotate thigh around X-axis based on slider
+  var totalBackLeftLegAngle = parseFloat(g_backLeftLegAngle);
+  if (animationRunning) {
+    totalBackLeftLegAngle += g_backLeftLegAnimAngle; 
+  }
+  backLeftLegMatrix.rotate(totalBackLeftLegAngle, 1, 0, 0); 
   
-  // Save the thigh transform state before scaling (for use by the calf)
   var backLeftThighTransform = new Matrix4(backLeftLegMatrix);
   
-  // Now scale and draw the thigh
-  backLeftLegMatrix.scale(0.06, 0.3, 0.06);         // Scale for thigh
-  drawCube(backLeftLegMatrix, [1.0, 0.8, 0.0, 1.0]); // Same yellow as body
+  backLeftLegMatrix.scale(0.06, 0.4, 0.06);         
+  drawCube(backLeftLegMatrix, [1.0, 0.8, 0.0, 1.0]); 
 
   // BACK LEFT LOWER LEG - Bottom half - Calf
-  // Start with the thigh transform to maintain the hierarchy
   var backLeftCalfMatrix = new Matrix4(backLeftThighTransform);
-  backLeftCalfMatrix.translate(0.0, -0.3, 0.0);     // Position at knee joint
+  backLeftCalfMatrix.translate(0.0, -0.4 + 0.05, 0.0);        
   
-  // Apply the calf rotation
-  backLeftCalfMatrix.rotate(g_backLeftCalfAngle, 1, 0, 0); // Rotate calf around X-axis based on slider
+  var totalBackLeftCalfAngle = parseFloat(g_backLeftCalfAngle);
+  if (animationRunning) {
+    totalBackLeftCalfAngle += g_backLeftCalfAnimAngle;
+  }
+  backLeftCalfMatrix.rotate(totalBackLeftCalfAngle, 1, 0, 0); 
   
-  // Save the calf transform state before scaling (for use by the foot)
   var backLeftCalfTransform = new Matrix4(backLeftCalfMatrix);
   
-  // Now scale and draw the calf
-  backLeftCalfMatrix.scale(0.06, 0.3, 0.06);       // Scale for calf
-  drawCube(backLeftCalfMatrix, [1.0, 0.8, 0.0, 1.0]); // Yellow color
+  backLeftCalfMatrix.scale(0.06, 0.4, 0.06);       
+  drawCube(backLeftCalfMatrix, [1.0, 0.8, 0.0, 1.0]); 
 
   // BACK LEFT FOOT (HOOF) - third level in hierarchy
-  // Start with the calf transform to maintain the hierarchy
   var backLeftFootMatrix = new Matrix4(backLeftCalfTransform);
-  backLeftFootMatrix.translate(0.0, -0.3, 0.0);      // Position at ankle joint
+  backLeftFootMatrix.translate(0.0, -0.4 + 0.05, 0.0);         
   
-  // Apply the foot rotation
-  backLeftFootMatrix.rotate(g_backLeftFootAngle, 1, 0, 0); // Rotate foot around X-axis based on slider
+  var totalBackLeftFootAngle = parseFloat(g_backLeftFootAngle);
+  if (animationRunning) {
+    totalBackLeftFootAngle += g_backLeftFootAnimAngle; 
+  }
+  backLeftFootMatrix.rotate(totalBackLeftFootAngle, 1, 0, 0); 
   
-  // Scale and draw the foot/hoof
-  backLeftFootMatrix.scale(0.06, 0.05, 0.07);       // Scale for hoof
-  drawCube(backLeftFootMatrix, [1.0, 0.8, 0.0, 1.0]); // Yellow hoof
+  backLeftFootMatrix.scale(0.06, 0.05, 0.07);       
+  drawCube(backLeftFootMatrix, [1.0, 0.8, 0.0, 1.0]); 
 
 
-
-  // No random spots - they've been removed as requested
+  drawGiraffeSpots(modelMatrix);
 }
 
-// Function to update animation angles based on time
+function drawGiraffeSpots(baseMatrix) {
+  var bodySpotPositions = [
+    [0.13, 0.07, 0.15, 0.025],   // Left/Right side front
+    [0.13, 0.07, -0.05, 0.025],  // Left/Right side middle
+    [0.13, 0.07, -0.2, 0.025],   // Left/Right side back
+    [0.13, 0.1, 0.0, 0.025],     // Left/Right upper side
+    [0.0, 0.15, 0.1, 0.03],      // Top front
+    [0.0, 0.15, -0.15, 0.03],    // Top back
+    [0.0, 0.05, 0.21, 0.025],    // Front center
+    [0.08, 0.07, 0.21, 0.025],   // Front right/left
+    [0.0, 0.05, -0.33, 0.025],   // Back center
+    [0.08, 0.07, -0.33, 0.025]   // Back right/left
+  ];
+    
+  bodySpotPositions.forEach(function(spot) {
+    drawSpot(baseMatrix, spot[0], spot[1], spot[2], spot[3], spot[3], spot[3]);
+    drawSpot(baseMatrix, -spot[0], spot[1], spot[2], spot[3], spot[3], spot[3]);
+
+    if (spot[0] !== 0) {
+      drawSpot(baseMatrix, spot[0] * 0.7, spot[1] * 1.1, spot[2] * 0.9, spot[3] * 0.8, spot[3] * 0.8, spot[3] * 0.8);
+      drawSpot(baseMatrix, -spot[0] * 0.7, spot[1] * 1.1, spot[2] * 0.9, spot[3] * 0.8, spot[3] * 0.8, spot[3] * 0.8);
+    }
+  });
+  
+  var neckSpotMatrix = new Matrix4(baseMatrix);
+  neckSpotMatrix.translate(0.0, 0.25, 0.08);
+  neckSpotMatrix.rotate(-20, 1, 0, 0); 
+  
+  var neckSpotPositions = [
+    [0.04, 0.1, 0.0, 0.02],    // Left/Right side lower 
+    [0.04, 0.25, 0.0, 0.02],   // Left/Right side upper
+    [0.0, 0.15, 0.04, 0.02],   // Front lower
+    [0.0, 0.3, 0.04, 0.02],    // Front upper
+    [0.0, 0.15, -0.04, 0.02],  // Back lower
+    [0.0, 0.3, -0.04, 0.02]    // Back upper
+  ];
+  
+  neckSpotPositions.forEach(function(spot) {
+    if (spot[0] !== 0) {
+      drawSpot(neckSpotMatrix, spot[0], spot[1], spot[2], spot[3], spot[3], spot[3]);
+      drawSpot(neckSpotMatrix, -spot[0], spot[1], spot[2], spot[3], spot[3], spot[3]);
+    } else {
+      drawSpot(neckSpotMatrix, spot[0], spot[1], spot[2], spot[3], spot[3], spot[3]);
+    }
+    
+    // Add some variation for visual interest
+    if (spot[0] !== 0) {
+      drawSpot(neckSpotMatrix, spot[0] * 0.8, spot[1] * 0.9, spot[2], spot[3] * 0.9, spot[3] * 0.9, spot[3] * 0.9);
+      drawSpot(neckSpotMatrix, -spot[0] * 0.8, spot[1] * 0.9, spot[2], spot[3] * 0.9, spot[3] * 0.9, spot[3] * 0.9);
+    }
+  });
+  
+  // Leg spots - draw on all legs with proper positioning
+  var legMatrices = [
+    {matrix: new Matrix4(baseMatrix), x: 0.1, z: 0.18},    // Front right leg
+    {matrix: new Matrix4(baseMatrix), x: -0.1, z: 0.18},   // Front left leg
+    {matrix: new Matrix4(baseMatrix), x: 0.1, z: -0.3},    // Back right leg
+    {matrix: new Matrix4(baseMatrix), x: -0.1, z: -0.3}    // Back left leg
+  ];
+  
+  legMatrices.forEach(function(leg) {
+    var legSpotMatrix = leg.matrix;
+    legSpotMatrix.translate(leg.x, -0.15, leg.z);
+    
+    drawSpot(legSpotMatrix, 0.03, -0.07, 0.02, 0.018, 0.018, 0.018);  
+    drawSpot(legSpotMatrix, -0.03, -0.07, 0.02, 0.018, 0.018, 0.018); 
+    drawSpot(legSpotMatrix, 0.03, -0.15, 0.02, 0.018, 0.018, 0.018);  
+    drawSpot(legSpotMatrix, -0.03, -0.15, 0.02, 0.018, 0.018, 0.018); 
+    drawSpot(legSpotMatrix, 0.0, -0.1, 0.03, 0.018, 0.018, 0.018);    
+    
+    drawSpot(legSpotMatrix, 0.03, -0.07, -0.02, 0.018, 0.018, 0.018); 
+    drawSpot(legSpotMatrix, -0.03, -0.07, -0.02, 0.018, 0.018, 0.018); 
+  });
+}
+
+function drawSpot(baseMatrix, x, y, z, sx, sy, sz) {
+  var spotMatrix = new Matrix4(baseMatrix);
+  spotMatrix.translate(x, y, z);
+  spotMatrix.scale(sx, sy, sz);
+  
+  var spotColor = [0.5, 0.25, 0.0, 1.0];
+  
+  if (g_isPokeAnimating) {
+    var pulseFactor = Math.sin((g_pokeAnimTime / g_pokeAnimDuration) * Math.PI * 8);
+    spotColor = [
+      0.5 + pulseFactor * 0.3, 
+      0.25, 
+      0.0 + pulseFactor * 0.2, 
+      1.0
+    ];
+  }
+  
+  drawCube(spotMatrix, spotColor);
+}
+
 function updateAnimationAngles() {
+  if (g_isPokeAnimating) {
+    g_pokeAnimTime++;
+    
+    // If we've reached the end of the animation, reset
+    if (g_pokeAnimTime >= g_pokeAnimDuration) {
+      g_isPokeAnimating = false;
+      g_pokeAnimTime = 0;
+    }
+  }
+  
   if (animationRunning) {
-    // Update the global time variable
     g_time++;
     
-    // Calculate animation for each part of the right leg (kicking motion)
-    g_rightLegAnimAngle = Math.sin(g_time * 0.05) * 10; // 10 degree amplitude for thigh
+    var speed = 0.03;
     
-    // Calf animation with slight phase offset for natural movement
-    g_rightCalfAnimAngle = Math.sin((g_time * 0.05) + 0.5) * 15; // 15 degree amplitude for calf
+    g_rightLegAnimAngle = Math.sin(g_time * speed) * 15; 
+    g_rightCalfAnimAngle = Math.sin((g_time * speed) + 0.5) * 10; 
+    g_rightFootAnimAngle = Math.sin((g_time * speed) + 1.0) * 5; 
     
-    // Foot animation with another phase offset
-    g_rightFootAnimAngle = Math.sin((g_time * 0.05) + 1.0) * 8; // 8 degree amplitude for foot
+    // Front left leg animation 
+    g_leftLegAnimAngle = Math.sin((g_time * speed) + Math.PI) * 15; // Opposite phase
+    g_leftCalfAnimAngle = Math.sin((g_time * speed) + Math.PI + 0.5) * 10;
+    g_leftFootAnimAngle = Math.sin((g_time * speed) + Math.PI + 1.0) * 5;
+    
+    // Back right leg animation
+    g_backRightLegAnimAngle = Math.sin((g_time * speed) + Math.PI) * 15;
+    g_backRightCalfAnimAngle = Math.sin((g_time * speed) + Math.PI + 0.5) * 10;
+    g_backRightFootAnimAngle = Math.sin((g_time * speed) + Math.PI + 1.0) * 5;
+    
+    g_backLeftLegAnimAngle = Math.sin(g_time * speed) * 15;
+    g_backLeftCalfAnimAngle = Math.sin((g_time * speed) + 0.5) * 10;
+    g_backLeftFootAnimAngle = Math.sin((g_time * speed) + 1.0) * 5;
+    
+    g_headAnimAngle = Math.sin(g_time * speed * 0.7) * 5; 
+    g_neckAnimAngle = Math.sin(g_time * speed * 0.7 + 0.3) * 3; 
+    
+    g_tailAnimAngle = Math.sin(g_time * speed * 1.5) * 10; 
+    
+    g_bodyAnimOffset = Math.abs(Math.sin(g_time * speed)) * 0.02; 
   }
 }
 
-// Animation tick function - called every frame
 function tick() {
-  // Update animation angles based on current time
   updateAnimationAngles();
-  
-  // Render the scene with the updated animation values
   renderScene();
-  
-  // Request the next animation frame
   requestAnimationFrame(tick);
 }

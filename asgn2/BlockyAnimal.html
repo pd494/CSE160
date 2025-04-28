@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>Blocky Animal</title>
+    <title>Blocky Animal: Giraffe with brown spots</title>
     <style>
       body {
         font-family: Arial, sans-serif;
@@ -32,18 +32,21 @@
   </head>
 
   <body onload="main()">
-    <h1>Blocky Animal</h1>
+    <h1 style="text-align: center; font-size: 32px; margin-bottom: 10px;">BLOCKY ANIMAL: Giraffe with brown spots and eyes</h1>
     
     <div style="text-align: center; margin-bottom: 20px;">
-      <p>Assignment 2</p>
-      <p><small>Click to draw points, triangles, or circles on the canvas</small></p>
-      
       <div style="display: flex; justify-content: center; flex-wrap: wrap; gap: 10px; margin: 15px 0;">
-        <button id="pointBtn" style="padding: 8px 16px; background-color: #000000; color: white; border: none; border-radius: 4px; cursor: pointer;">Point</button>
-        <button id="triangleBtn" style="padding: 8px 16px; background-color: #555555; color: white; border: none; border-radius: 4px; cursor: pointer;">Triangle</button>
-        <button id="circleBtn" style="padding: 8px 16px; background-color: #555555; color: white; border: none; border-radius: 4px; cursor: pointer;">Circle</button>
-        <button id="clearBtn" style="padding: 8px 16px; background-color: #f44336; color: white; border: none; border-radius: 4px; cursor: pointer;">Clear Canvas</button>
         <button id="animToggleBtn" style="padding: 8px 16px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">Animation: ON</button>
+      </div>
+      
+      <div style="background-color: #f5f5f5; padding: 15px; border-radius: 8px; max-width: 600px; margin: 0 auto;">
+        <h3 style="margin-top: 0;">Features:</h3>
+        <ul style="text-align: left; margin-bottom: 0;">
+          <li><strong>Mouse Control:</strong> Click and drag to rotate the giraffe</li>
+          <li><strong>Special Effect:</strong> Press Shift + Click to see what happens!</li>
+          <li><strong>Animation:</strong> The entire animal is animated when enabled</li>
+          <li><strong>Individual Control:</strong> Scroll down to move individual joints</li>
+        </ul>
       </div>
     </div>
     
