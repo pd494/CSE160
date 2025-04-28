@@ -39,12 +39,28 @@ var currentColor = [1.0, 0.0, 0.0, 1.0];  // Current drawing color (red by defau
 var currentSize = 10;  // Current point size (default: 10)
 var currentSegments = 10;  // Current number of segments for circles (default: 10)
 
+// Joint angle variables for legs
+// Upper leg (thigh) joint angles
+var g_frontRightLegAngle = 0;  // Front right leg joint angle
+var g_frontLeftLegAngle = 0;   // Front left leg joint angle
+var g_backRightLegAngle = 0;   // Back right leg joint angle
+var g_backLeftLegAngle = 0;    // Back left leg joint angle
+
+// Lower leg (calf) joint angles
+var g_frontRightCalfAngle = 0;  // Front right calf joint angle
+var g_frontLeftCalfAngle = 0;   // Front left calf joint angle
+var g_backRightCalfAngle = 0;   // Back right calf joint angle
+var g_backLeftCalfAngle = 0;    // Back left calf joint angle
+
 // Drawing mode variables
 var currentDrawingMode = 'point';  // Default drawing mode: 'point', 'triangle', or 'circle'
 
 // Animation control
 var animationRunning = false;
 var animationId = null;
+
+// Global time variable for animation
+var g_time = 0;
 
 function main() {
   // Setup WebGL context
@@ -59,13 +75,66 @@ function main() {
     return;
   }
   
+  // Start the animation
+  requestAnimationFrame(tick);
+  
   // Register event handlers
   canvas.onmousedown = click;
   canvas.onmousemove = drag;
 
   document.getElementById('cameraAngleSlider').addEventListener('input', function() { 
-    g_globalAngle = this.value; 
-    renderScene(); 
+    g_globalAngle = parseFloat(this.value); 
+    // No need to call renderScene, tick will handle it
+  });
+  
+  // Add event listeners for leg angle sliders
+  document.getElementById('frontRightLegSlider').addEventListener('input', function() {
+    g_frontRightLegAngle = parseFloat(this.value);
+    document.getElementById('frontRightLegValue').textContent = this.value + '°';
+    // Just update the display text, renderScene will be called by tick
+  });
+  
+  document.getElementById('frontLeftLegSlider').addEventListener('input', function() {
+    g_frontLeftLegAngle = parseFloat(this.value);
+    document.getElementById('frontLeftLegValue').textContent = this.value + '°';
+    // No need to call renderScene, tick will handle it
+  });
+  
+  document.getElementById('backRightLegSlider').addEventListener('input', function() {
+    g_backRightLegAngle = parseFloat(this.value);
+    document.getElementById('backRightLegValue').textContent = this.value + '°';
+    // No need to call renderScene, tick will handle it
+  });
+  
+  document.getElementById('backLeftLegSlider').addEventListener('input', function() {
+    g_backLeftLegAngle = parseFloat(this.value);
+    document.getElementById('backLeftLegValue').textContent = this.value + '°';
+    // No need to call renderScene, tick will handle it
+  });
+  
+  // Add event listeners for calf angle sliders
+  document.getElementById('frontRightCalfSlider').addEventListener('input', function() {
+    g_frontRightCalfAngle = parseFloat(this.value);
+    document.getElementById('frontRightCalfValue').textContent = this.value + '°';
+    // No need to call renderScene, tick will handle it
+  });
+  
+  document.getElementById('frontLeftCalfSlider').addEventListener('input', function() {
+    g_frontLeftCalfAngle = parseFloat(this.value);
+    document.getElementById('frontLeftCalfValue').textContent = this.value + '°';
+    // No need to call renderScene, tick will handle it
+  });
+  
+  document.getElementById('backRightCalfSlider').addEventListener('input', function() {
+    g_backRightCalfAngle = parseFloat(this.value);
+    document.getElementById('backRightCalfValue').textContent = this.value + '°';
+    // No need to call renderScene, tick will handle it
+  });
+  
+  document.getElementById('backLeftCalfSlider').addEventListener('input', function() {
+    g_backLeftCalfAngle = parseFloat(this.value);
+    document.getElementById('backLeftCalfValue').textContent = this.value + '°';
+    // No need to call renderScene, tick will handle it
   });
   
 
@@ -302,73 +371,172 @@ function renderScene() {
   // Clear the canvas with depth buffer
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-  // --- Animal Construction Begins ---
+  // --- Animal Construction Begins with Proper Connections ---
   
-  // Body matrix (center of the giraffe)
-  var bodyMatrix = new Matrix4();
-  bodyMatrix.setTranslate(0.0, -0.2, 0.0);
-  bodyMatrix.scale(0.3, 0.2, 0.5);
+  // Create matrices for tracking transformations
+  var modelMatrix = new Matrix4();  // The model matrix for the main body
+  
+  // BODY - Start with the body as the root
+  modelMatrix.setTranslate(0.0, 0.0, 0.0);  // Position the body
+  var bodyMatrix = new Matrix4(modelMatrix); // Save the body matrix
+  bodyMatrix.scale(0.25, 0.15, 0.4);       // Shorter in front to align with legs
   drawCube(bodyMatrix, [1.0, 0.8, 0.0, 1.0]); // Yellow body
+  
+  // BACK BODY EXTENSION - Connect to all legs
+  var backBodyMatrix = new Matrix4(modelMatrix);
+  backBodyMatrix.translate(0.0, 0.0, -0.2);  // Position slightly back from main body
+  backBodyMatrix.scale(0.25, 0.15, 0.22);    // Same width as main body, extended back by 10%
+  drawCube(backBodyMatrix, [1.0, 0.8, 0.0, 1.0]); // Same yellow as body
 
-  // Neck matrix
-  var neckMatrix = new Matrix4();
-  neckMatrix.setTranslate(0.0, 0.0, 0.0); // Base position at the top of body
-  neckMatrix.translate(0.0, 0.2, 0.0); // Move up to position the neck
-  neckMatrix.scale(0.15, 0.6, 0.15); // Make it tall and thin
+  // NECK - Connects to the body - position at the front of the body
+  var neckMatrix = new Matrix4(modelMatrix);
+  neckMatrix.translate(0.0, 0.15, 0.1);       // Move up and slightly forward from body center
+  neckMatrix.rotate(-20, 1, 0, 0);           // Tilt the neck forward a bit
+  var neckTransformMatrix = new Matrix4(neckMatrix); // Save for head positioning
+  neckMatrix.scale(0.08, 0.4, 0.08);         // Scale for neck shape - long and thin
   drawCube(neckMatrix, [1.0, 0.8, 0.0, 1.0]); // Yellow neck
 
-  // Head matrix
-  var headMatrix = new Matrix4();
-  headMatrix.setTranslate(0.0, 0.5, 0.1); // Position at the top of the neck
-  headMatrix.scale(0.2, 0.2, 0.3); // Head shape
-  drawCube(headMatrix, [1.0, 0.8, 0.0, 1.0]); // Yellow head
+  // HEAD - Connects to the top of the neck
+  var headMatrix = new Matrix4(neckTransformMatrix);
+  headMatrix.translate(0.0, 0.4, 0.0);         // Move to top of neck
+  // No rotation - head is straight now
+  var headTransformMatrix = new Matrix4(headMatrix); // Save for ears and other features
+  headMatrix.scale(0.12, 0.12, 0.2);          // Head shape - longer in z direction
+  drawCube(headMatrix, [1.0, 0.8, 0.0, 1.0]);  // Yellow head
 
-  // Front Right Leg (upper segment)
-  var frontRightLegMatrix = new Matrix4();
-  frontRightLegMatrix.setTranslate(0.15, -0.4, 0.2); // Position at the bottom right of body
-  frontRightLegMatrix.scale(0.08, 0.2, 0.08); // Leg shape
-  drawCube(frontRightLegMatrix, [0.8, 0.6, 0.0, 1.0]); // Darker yellow leg
+  // TAIL - Connects to the back of the body extension
+  var tailMatrix = new Matrix4(modelMatrix);
+  tailMatrix.translate(0.0, 0.05, -0.32);      // Position at the very back of the extended body
+  tailMatrix.rotate(-20, 1, 0, 0);            // Angle the tail downward
+  var tailTransformMatrix = new Matrix4(tailMatrix); // Save for tail tip
+  tailMatrix.scale(0.03, 0.1, 0.03);          // Thin tail
+  drawCube(tailMatrix, [0.8, 0.6, 0.0, 1.0]);  // Brown tail
+  
+  // TAIL TIP - small tuft at the end of the tail
+  var tailTipMatrix = new Matrix4(tailTransformMatrix);
+  tailTipMatrix.translate(0.0, -0.1, 0.0);     // Move to end of tail (downward now)
+  tailTipMatrix.scale(0.04, 0.04, 0.04);        // Small tuft
+  drawCube(tailTipMatrix, [0.4, 0.3, 0.0, 1.0]); // Dark brown tail tuft
 
-  // Front Right Leg (lower segment) - this is a child of the upper segment
-  var lowerRightLegMatrix = new Matrix4();
-  lowerRightLegMatrix.setTranslate(0.15, -0.6, 0.2); // Position below the upper segment
-  lowerRightLegMatrix.rotate(20, 1, 0, 0); // Slight bend in the leg
-  lowerRightLegMatrix.scale(0.06, 0.2, 0.06); // Slightly thinner than upper leg
-  drawCube(lowerRightLegMatrix, [0.8, 0.6, 0.0, 1.0]); // Darker yellow leg
+  // LEGS
+  // Reset to body position for the legs
+  var legsBaseMatrix = new Matrix4(modelMatrix);
+  // Create a separate base matrix for back legs to align with the back body extension
+  var backLegsBaseMatrix = new Matrix4(modelMatrix);
+  backLegsBaseMatrix.translate(0.0, 0.0, -0.2); // Align with the back body extension
 
-  // Front Right Hoof - this is a child of the lower leg segment
-  var hoofMatrix = new Matrix4();
-  hoofMatrix.setTranslate(0.15, -0.7, 0.25); // Position at the bottom of the lower leg
-  hoofMatrix.scale(0.08, 0.05, 0.1); // Flat hoof shape
-  drawCube(hoofMatrix, [0.4, 0.3, 0.0, 1.0]); // Dark brown hoof
+  // FRONT RIGHT LEG - Top half (yellow) - Thigh
+  var frontRightLegMatrix = new Matrix4(legsBaseMatrix);
+  frontRightLegMatrix.translate(0.1, -0.15, 0.18);    // Position at front right
+  // Add a small animation to the right leg (a little kick)
+  // Use the slider value as the base position and add animation on top
+  // The animationOffset will cause a small kicking motion
+  var animationOffset = Math.sin(g_time * 0.05) * 10; // 10 degree amplitude
+  var totalRightLegAngle = parseFloat(g_frontRightLegAngle) + animationOffset;
+  frontRightLegMatrix.rotate(totalRightLegAngle, 1, 0, 0); // Combine slider value with animation
+  var upperLegTransform = new Matrix4(frontRightLegMatrix); // Save transform state for lower segment
+  frontRightLegMatrix.scale(0.06, 0.3, 0.06);       // Scale for thigh
+  drawCube(frontRightLegMatrix, [1.0, 0.8, 0.0, 1.0]); // Same yellow as body
 
-  // Front Left Leg
-  var frontLeftLegMatrix = new Matrix4();
-  frontLeftLegMatrix.setTranslate(-0.15, -0.4, 0.2);
-  frontLeftLegMatrix.scale(0.08, 0.4, 0.08);
-  drawCube(frontLeftLegMatrix, [0.8, 0.6, 0.0, 1.0]);
+  // FRONT RIGHT LOWER LEG - Bottom half - Calf
+  var lowerRightLegMatrix = new Matrix4(upperLegTransform);
+  lowerRightLegMatrix.translate(0.0, -0.3, 0.0);    // Position at knee joint
+  lowerRightLegMatrix.rotate(g_frontRightCalfAngle, 1, 0, 0); // Rotate calf around X-axis based on slider
+  var lowerLegTransform = new Matrix4(lowerRightLegMatrix); // Save transform state for hoof
+  lowerRightLegMatrix.scale(0.06, 0.3, 0.06);       // Scale for calf
+  drawCube(lowerRightLegMatrix, [1.0, 0.8, 0.0, 1.0]); // Yellow color for lower leg
 
-  // Back Right Leg
-  var backRightLegMatrix = new Matrix4();
-  backRightLegMatrix.setTranslate(0.15, -0.4, -0.2);
-  backRightLegMatrix.scale(0.08, 0.4, 0.08);
-  drawCube(backRightLegMatrix, [0.8, 0.6, 0.0, 1.0]);
+  // FRONT RIGHT HOOF - directly connected to lower leg
+  var hoofRightMatrix = new Matrix4(lowerLegTransform);
+  hoofRightMatrix.translate(0.0, -0.3, 0.0);        // Position at ankle joint
+  hoofRightMatrix.scale(0.06, 0.05, 0.07);          // Scale for hoof
+  drawCube(hoofRightMatrix, [1.0, 0.8, 0.0, 1.0]);   // Yellow hoof
 
-  // Back Left Leg
-  var backLeftLegMatrix = new Matrix4();
-  backLeftLegMatrix.setTranslate(-0.15, -0.4, -0.2);
-  backLeftLegMatrix.scale(0.08, 0.4, 0.08);
-  drawCube(backLeftLegMatrix, [0.8, 0.6, 0.0, 1.0]);
 
-  // Spot 1 on body
-  var spot1Matrix = new Matrix4();
-  spot1Matrix.setTranslate(0.1, -0.15, 0.1);
-  spot1Matrix.scale(0.1, 0.1, 0.1);
-  drawCube(spot1Matrix, [0.6, 0.3, 0.0, 1.0]); // Brown spot
 
-  // Spot 2 on body
-  var spot2Matrix = new Matrix4();
-  spot2Matrix.setTranslate(-0.1, -0.2, -0.1);
-  spot2Matrix.scale(0.08, 0.08, 0.08);
-  drawCube(spot2Matrix, [0.6, 0.3, 0.0, 1.0]); // Brown spot
+  // FRONT LEFT LEG - Top half (yellow) - Thigh
+  var frontLeftLegMatrix = new Matrix4(legsBaseMatrix);
+  frontLeftLegMatrix.translate(-0.1, -0.15, 0.18);   // Position at front left
+  frontLeftLegMatrix.rotate(g_frontLeftLegAngle, 1, 0, 0); // Rotate thigh around X-axis based on slider
+  var leftLegTransform = new Matrix4(frontLeftLegMatrix); // Save transform state for lower segment
+  frontLeftLegMatrix.scale(0.06, 0.3, 0.06);        // Scale for thigh
+  drawCube(frontLeftLegMatrix, [1.0, 0.8, 0.0, 1.0]); // Same yellow as body
+
+  // FRONT LEFT LOWER LEG - Bottom half - Calf
+  var lowerLeftLegMatrix = new Matrix4(leftLegTransform);
+  lowerLeftLegMatrix.translate(0.0, -0.3, 0.0);      // Position at knee joint
+  lowerLeftLegMatrix.rotate(g_frontLeftCalfAngle, 1, 0, 0); // Rotate calf around X-axis based on slider
+  var lowerLeftTransform = new Matrix4(lowerLeftLegMatrix); // Save transform state for hoof
+  lowerLeftLegMatrix.scale(0.06, 0.3, 0.06);        // Scale for calf
+  drawCube(lowerLeftLegMatrix, [1.0, 0.8, 0.0, 1.0]); // Yellow color
+
+  // FRONT LEFT HOOF - directly connected to lower leg
+  var hoofLeftMatrix = new Matrix4(lowerLeftTransform);
+  hoofLeftMatrix.translate(0.0, -0.3, 0.0);         // Position at ankle joint
+  hoofLeftMatrix.scale(0.06, 0.05, 0.07);           // Scale for hoof
+  drawCube(hoofLeftMatrix, [1.0, 0.8, 0.0, 1.0]);    // Yellow hoof
+
+
+
+  // BACK RIGHT LEG - Top half (yellow) - Thigh
+  var backRightLegMatrix = new Matrix4(backLegsBaseMatrix);
+  backRightLegMatrix.translate(0.1, -0.15, -0.1);    // Position at back right, connected to back body extension
+  backRightLegMatrix.rotate(g_backRightLegAngle, 1, 0, 0); // Rotate thigh around X-axis based on slider
+  var backRightTransform = new Matrix4(backRightLegMatrix); // Save transform state for lower leg
+  backRightLegMatrix.scale(0.06, 0.3, 0.06);        // Scale for thigh
+  drawCube(backRightLegMatrix, [1.0, 0.8, 0.0, 1.0]); // Same yellow as body
+
+  // BACK RIGHT LOWER LEG - Bottom half - Calf
+  var backRightLowerMatrix = new Matrix4(backRightTransform);
+  backRightLowerMatrix.translate(0.0, -0.3, 0.0);    // Position at knee joint
+  backRightLowerMatrix.rotate(g_backRightCalfAngle, 1, 0, 0); // Rotate calf around X-axis based on slider
+  var backRightLowerTransform = new Matrix4(backRightLowerMatrix); // Save transform state for hoof
+  backRightLowerMatrix.scale(0.06, 0.3, 0.06);      // Scale for calf
+  drawCube(backRightLowerMatrix, [1.0, 0.8, 0.0, 1.0]); // Yellow color
+
+  // BACK RIGHT HOOF - directly connected to lower leg
+  var backRightHoofMatrix = new Matrix4(backRightLowerTransform);
+  backRightHoofMatrix.translate(0.0, -0.3, 0.0);     // Position at ankle joint
+  backRightHoofMatrix.scale(0.06, 0.05, 0.07);      // Scale for hoof
+  drawCube(backRightHoofMatrix, [1.0, 0.8, 0.0, 1.0]); // Yellow hoof
+
+
+
+  // BACK LEFT LEG - Top half (yellow) - Thigh
+  var backLeftLegMatrix = new Matrix4(backLegsBaseMatrix);
+  backLeftLegMatrix.translate(-0.1, -0.15, -0.1);    // Position at back left, connected to back body extension
+  backLeftLegMatrix.rotate(g_backLeftLegAngle, 1, 0, 0); // Rotate thigh around X-axis based on slider
+  var backLeftTransform = new Matrix4(backLeftLegMatrix); // Save transform state for lower leg
+  backLeftLegMatrix.scale(0.06, 0.3, 0.06);         // Scale for thigh
+  drawCube(backLeftLegMatrix, [1.0, 0.8, 0.0, 1.0]); // Same yellow as body
+
+  // BACK LEFT LOWER LEG - Bottom half - Calf
+  var backLeftLowerMatrix = new Matrix4(backLeftTransform);
+  backLeftLowerMatrix.translate(0.0, -0.3, 0.0);     // Position at knee joint
+  backLeftLowerMatrix.rotate(g_backLeftCalfAngle, 1, 0, 0); // Rotate calf around X-axis based on slider
+  var backLeftLowerTransform = new Matrix4(backLeftLowerMatrix); // Save transform state for hoof
+  backLeftLowerMatrix.scale(0.06, 0.3, 0.06);       // Scale for calf
+  drawCube(backLeftLowerMatrix, [1.0, 0.8, 0.0, 1.0]); // Yellow color
+
+  // BACK LEFT HOOF - directly connected to lower leg
+  var backLeftHoofMatrix = new Matrix4(backLeftLowerTransform);
+  backLeftHoofMatrix.translate(0.0, -0.3, 0.0);      // Position at ankle joint
+  backLeftHoofMatrix.scale(0.06, 0.05, 0.07);       // Scale for hoof
+  drawCube(backLeftHoofMatrix, [1.0, 0.8, 0.0, 1.0]); // Yellow hoof
+
+
+
+  // No random spots - they've been removed as requested
+}
+
+// Animation tick function - called every frame
+function tick() {
+  // Update the global time variable
+  g_time++;
+  
+  // Render the scene with the updated time
+  renderScene();
+  
+  // Request the next animation frame
+  requestAnimationFrame(tick);
 }

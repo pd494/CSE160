@@ -54,56 +54,48 @@
         </canvas>
       </div>
       
-      <div style="border: 1px solid #ccc; padding: 10px; border-radius: 5px;">
-        <h3 style="margin-top: 0; text-align: center;">My Reference Image</h3>
-        <img src="IMG_7389.JPG" alt="Winter Scene Reference" style="max-width: 400px; max-height: 400px;">
-        <p style="text-align: center; margin-bottom: 0;"><small>This is my reference image for the "Show My Drawing" feature</small></p>
-      </div>
+
     </div>
     
     <div class="color-controls">
       <h3>Shape Color:</h3>
       <div class="color-presets" style="margin-bottom: 15px;">
-        <button id="redBtn" style="background-color: #ff0000; color: white; margin-right: 10px; padding: 5px 15px;">Red</button>
-        <button id="greenBtn" style="background-color: #00ff00; color: black; margin-right: 10px; padding: 5px 15px;">Green</button>
-        <button id="blueBtn" style="background-color: #0000ff; color: white; padding: 5px 15px;">Blue</button>
+     
       </div>
       
 
       <p> Camera Angle  <input type="range" id="cameraAngleSlider" min="0" max="90" value = "5" class = "slider" id = "angleSlider"></p>
-      <div class="slider-container">
-        <label for="redSlider">Red:</label>
-        <input type="range" id="redSlider" min="0" max="1" step="0.01" value="1">
-        <span id="redValue">1.00</span>
+      
+      <div style="margin-top: 20px;">
+        <h3>Leg Joint Controls:</h3>
+        <div class="slider-container">
+          <label>Front Right Leg:</label>
+          <input type="range" id="frontRightLegSlider" min="-45" max="45" value="0" class="slider">
+          <span id="frontRightLegValue">0°</span>
+        </div>
+        
+        <div class="slider-container">
+          <label>Front Left Leg:</label>
+          <input type="range" id="frontLeftLegSlider" min="-45" max="45" value="0" class="slider">
+          <span id="frontLeftLegValue">0°</span>
+        </div>
+        
+        <div class="slider-container">
+          <label>Back Right Leg:</label>
+          <input type="range" id="backRightLegSlider" min="-45" max="45" value="0" class="slider">
+          <span id="backRightLegValue">0°</span>
+        </div>
+        
+        <div class="slider-container">
+          <label>Back Left Leg:</label>
+          <input type="range" id="backLeftLegSlider" min="-45" max="45" value="0" class="slider">
+          <span id="backLeftLegValue">0°</span>
+        </div>
       </div>
       
-      <div class="slider-container">
-        <label for="greenSlider">Green:</label>
-        <input type="range" id="greenSlider" min="0" max="1" step="0.01" value="0">
-        <span id="greenValue">0.00</span>
-      </div>
-      
-      <div class="slider-container">
-        <label for="blueSlider">Blue:</label>
-        <input type="range" id="blueSlider" min="0" max="1" step="0.01" value="0">
-        <span id="blueValue">0.00</span>
-      </div>
     </div>
 
-    <div class="size-controls" style="margin: 20px 0;">
-      <h3>Point Size:</h3>
-      <div class="slider-container">
-        <label for="sizeSlider">Size:</label>
-        <input type="range" id="sizeSlider" min="1" max="50" step="1" value="10">
-        <span id="sizeValue">10</span>
-      </div>
-      
-      <h3>Circle Segments:</h3>
-      <div class="slider-container">
-        <label for="segmentsSlider">Segments:</label>
-        <input type="range" id="segmentsSlider" min="3" max="36" step="1" value="10">
-        <span id="segmentsValue">10</span>
-      </div>
+  
     </div>
     
     <!-- Drawing mode controls moved to the top -->
