@@ -54,6 +54,26 @@ function drawTriangle3DUVFast(vertices, uvs) {
   gl.deleteBuffer(uvBuffer);
 }
 
+// Function to draw lines using WebGL buffer and coordinates
+function drawLines(vertices, mode = gl.LINE_LOOP) {
+  var n = vertices.length / 3; // Calculate number of vertices from array length
+  
+  // Create a buffer object
+  var vertexBuffer = gl.createBuffer();
+  if (!vertexBuffer) {
+    console.log('Failed to create the buffer object');
+    return -1;
+  }
+
+  gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+
+  gl.vertexAttribPointer(a_Position, 3, gl.FLOAT, false, 0, 0);
+  gl.enableVertexAttribArray(a_Position);
+
+  gl.drawArrays(mode, 0, n);
+}
+
 class Cube {
   constructor() {
     this.type = 'cube';
@@ -239,5 +259,73 @@ class Cube {
     
     // Draw all triangles at once with UV mapping
     drawTriangle3DUVFast(allverts, alluvs);
+  }
+  
+  // Method to render cube as wireframe
+  renderWireframe() {
+    var rgba = this.color;
+    
+    // Set texture and model matrix
+    gl.uniform1i(u_whichTexture, this.textureNum);
+    gl.uniformMatrix4fv(u_ModelMatrix, false, this.matrix.elements);
+    
+    // Use a bright color for the wireframe
+    gl.uniform4f(u_FragColor, rgba[0], rgba[1], rgba[2], rgba[3]);
+    
+    // Draw front face edges
+    drawLines([0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 0.0]);
+    
+    // Draw back face edges
+    drawLines([0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 1.0, 1.0]);
+    
+    // Draw connecting edges between front and back
+    drawLines([0.0, 0.0, 0.0, 0.0, 0.0, 1.0], gl.LINES);
+    drawLines([1.0, 0.0, 0.0, 1.0, 0.0, 1.0], gl.LINES);
+    drawLines([1.0, 1.0, 0.0, 1.0, 1.0, 1.0], gl.LINES);
+    drawLines([0.0, 1.0, 0.0, 0.0, 1.0, 1.0], gl.LINES);
+  }
+  
+  // Optimized wireframe rendering method
+  renderFastWireframe() {
+    var rgba = this.color;
+    
+    // Set texture and model matrix
+    gl.uniform1i(u_whichTexture, this.textureNum);
+    gl.uniformMatrix4fv(u_ModelMatrix, false, this.matrix.elements);
+    
+    // Use a bright color for the wireframe
+    gl.uniform4f(u_FragColor, rgba[0], rgba[1], rgba[2], rgba[3]);
+    
+    // All edges in a single buffer
+    // Front face (clockwise)
+    var lineVertices = [
+      // Front face
+      0.0, 0.0, 0.0, 
+      1.0, 0.0, 0.0,
+      1.0, 1.0, 0.0,
+      0.0, 1.0, 0.0,
+      0.0, 0.0, 0.0, // Close the loop
+      
+      // Back face (separate - can't do in one loop)
+      0.0, 0.0, 1.0,
+      1.0, 0.0, 1.0,
+      1.0, 1.0, 1.0,
+      0.0, 1.0, 1.0,
+      0.0, 0.0, 1.0, // Close the loop
+    ];
+    
+    // Draw the front and back faces
+    drawLines(lineVertices, gl.LINE_STRIP);
+    
+    // Draw the four connecting edges as individual lines
+    var connectingEdges = [
+      // Connect front to back corners
+      0.0, 0.0, 0.0, 0.0, 0.0, 1.0,
+      1.0, 0.0, 0.0, 1.0, 0.0, 1.0,
+      1.0, 1.0, 0.0, 1.0, 1.0, 1.0,
+      0.0, 1.0, 0.0, 0.0, 1.0, 1.0
+    ];
+    
+    drawLines(connectingEdges, gl.LINES);
   }
 }

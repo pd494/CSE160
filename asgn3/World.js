@@ -70,6 +70,9 @@ var g_global = 5;
 // Texture variables
 var u_Sampler0;
 var u_Sampler1;
+var u_Sampler2;
+var u_Sampler3;
+var u_Sampler4;
 var u_whichTexture;
 
 // Mouse tracking variables
@@ -146,9 +149,160 @@ var g_frameTime = 0;
 var g_fps = 0;
 var g_fpsElement;
 
-// Define a 32x32 map where each value represents wall height (0 = no wall)
+// Define a 32x32 map where each value has height and texture information
 var g_map = [];
 var g_walls = []; // Array to store wall objects
+
+// Map modification variables
+var g_currentBlockColor = [1.0, 1.0, 1.0, 1.0]; // Default block color is white
+
+// Mouse camera control variables
+var g_isDraggingCamera = false;  
+var g_mouseLastX = -1;
+var g_mouseLastY = -1;
+var g_cameraMode = false;  // Toggle between model rotation and camera rotation
+
+// Function to convert world coordinates to map coordinates
+function worldToMapCoord(x, z) {
+  // Using the same conversion as in buildWallsFromMap but in reverse,
+  // now allowing coordinates outside the original 32x32 range
+  var mapX = Math.round(x / 0.22 + 16);
+  var mapZ = Math.round(z / 0.22 + 16);
+  
+  return { x: mapX, z: mapZ };
+}
+
+// Function to determine which block is in front of the camera
+function getBlockInFrontOfCamera() {
+  // Get camera direction
+  var direction = new Vector3();
+  direction.set(g_camera.at);
+  direction.sub(g_camera.eye);
+  direction.normalize();
+  
+  // Calculate position slightly in front of camera (3 units forward)
+  var distance = 3.0;
+  var targetX = g_camera.eye.elements[0] + direction.elements[0] * distance;
+  var targetY = g_camera.eye.elements[1] + direction.elements[1] * distance;
+  var targetZ = g_camera.eye.elements[2] + direction.elements[2] * distance;
+  
+  // Convert to map coordinates
+  var mapCoord = worldToMapCoord(targetX, targetZ);
+  
+  return mapCoord;
+}
+
+// Function to add a block in front of the camera
+function addBlock() {
+  var blockCoord = getBlockInFrontOfCamera();
+  
+  // Ensure coordinates are valid - expanded range to allow building outside walls
+  if (blockCoord.x >= -100 && blockCoord.x < 100 && blockCoord.z >= -100 && blockCoord.z < 100) {
+    // If the coordinates are outside the original map range, extend the map
+    extendMapIfNeeded(blockCoord.x, blockCoord.z);
+    
+    // Get current height
+    var currentHeight = g_map[blockCoord.x][blockCoord.z].height;
+    
+    // Cap height at 10 to prevent building too high
+    if (currentHeight < 10) {
+      // Increment height
+      g_map[blockCoord.x][blockCoord.z].height = currentHeight + 1;
+      
+      // Rebuild walls to reflect the change
+      buildWallsFromMap();
+      showStatusMessage(`Added block at (${blockCoord.x}, ${blockCoord.z})`);
+      console.log(`Added block at (${blockCoord.x}, ${blockCoord.z}), new height: ${currentHeight + 1}`);
+    } else {
+      showStatusMessage(`Maximum height reached at (${blockCoord.x}, ${blockCoord.z})`, true);
+      console.log(`Maximum height reached at (${blockCoord.x}, ${blockCoord.z})`);
+    }
+  } else {
+    showStatusMessage(`Cannot build beyond the world limits`, true);
+  }
+}
+
+// Function to delete a block in front of the camera
+function deleteBlock() {
+  var blockCoord = getBlockInFrontOfCamera();
+  
+  // Ensure coordinates are valid - expanded range to allow deleting outside walls
+  if (blockCoord.x >= -100 && blockCoord.x < 100 && blockCoord.z >= -100 && blockCoord.z < 100) {
+    // If the coordinates are outside the original map range, check if the map extends there
+    extendMapIfNeeded(blockCoord.x, blockCoord.z);
+    
+    // Get current height
+    var currentHeight = g_map[blockCoord.x][blockCoord.z].height;
+    
+    // Only delete if there's something to delete
+    if (currentHeight > 0) {
+      // Decrement height
+      g_map[blockCoord.x][blockCoord.z].height = currentHeight - 1;
+      
+      // Rebuild walls to reflect the change
+      buildWallsFromMap();
+      showStatusMessage(`Removed block at (${blockCoord.x}, ${blockCoord.z})`);
+      console.log(`Removed block at (${blockCoord.x}, ${blockCoord.z}), new height: ${currentHeight - 1}`);
+    } else {
+      showStatusMessage(`No blocks to delete at (${blockCoord.x}, ${blockCoord.z})`, true);
+      console.log(`No blocks to delete at (${blockCoord.x}, ${blockCoord.z})`);
+    }
+  } else {
+    showStatusMessage(`Cannot delete beyond the world limits`, true);
+  }
+}
+
+// Function to extend the map to accommodate coordinates outside the original 32x32 range
+function extendMapIfNeeded(x, z) {
+  // Make sure the x coordinate array exists
+  if (!g_map[x]) {
+    g_map[x] = [];
+  }
+  
+  // Make sure the z coordinate exists in the x array
+  if (!g_map[x][z]) {
+    g_map[x][z] = { height: 0 };
+  }
+}
+
+// Function to show a temporary status message
+function showStatusMessage(message, isError = false) {
+  // Create or get the status message element
+  let statusElement = document.getElementById('status-message');
+  
+  if (!statusElement) {
+    statusElement = document.createElement('div');
+    statusElement.id = 'status-message';
+    statusElement.style.position = 'fixed';
+    statusElement.style.top = '10px';
+    statusElement.style.left = '50%';
+    statusElement.style.transform = 'translateX(-50%)';
+    statusElement.style.padding = '10px 20px';
+    statusElement.style.borderRadius = '5px';
+    statusElement.style.zIndex = '1000';
+    statusElement.style.fontWeight = 'bold';
+    statusElement.style.transition = 'opacity 0.5s ease-in-out';
+    document.body.appendChild(statusElement);
+  }
+  
+  // Set message style based on type
+  if (isError) {
+    statusElement.style.backgroundColor = '#f44336'; // Red for errors
+    statusElement.style.color = 'white';
+  } else {
+    statusElement.style.backgroundColor = '#4CAF50'; // Green for success
+    statusElement.style.color = 'white';
+  }
+  
+  // Set message content
+  statusElement.textContent = message;
+  statusElement.style.opacity = '1';
+  
+  // Auto-hide after 3 seconds
+  setTimeout(() => {
+    statusElement.style.opacity = '0';
+  }, 3000);
+}
 
 // Initialize the map with walls around the perimeter and some random structures
 function initializeMap() {
@@ -157,38 +311,12 @@ function initializeMap() {
     g_map[i] = [];
     for (var j = 0; j < 32; j++) {
       // Default: no walls (0)
-      g_map[i][j] = 0;
+      g_map[i][j] = { height: 0 };
       
-      // Create walls around the perimeter
+      // Create walls around the perimeter only
       if (i === 0 || i === 31 || j === 0 || j === 31) {
-        g_map[i][j] = 1; // 1 unit high wall
+        g_map[i][j] = { height: 1 };
       }
-    }
-  }
-  
-  // Pillars in corners - shorter now
-  g_map[5][5] = 2;   // 2 units high
-  g_map[5][26] = 2;
-  g_map[26][5] = 2;
-  g_map[26][26] = 2;
-  
-  // Some random walls
-  g_map[10][5] = 1;
-  g_map[11][5] = 1;
-  g_map[12][5] = 1;
-  g_map[13][5] = 1;
-  
-  // Move the taller structures away from the center to avoid covering the animal
-  // Place them near the perimeter instead
-  g_map[5][12] = 3;  // A 3-unit high tower near the left wall
-  g_map[5][13] = 3;
-  g_map[26][12] = 3; // A 3-unit high tower near the right wall
-  g_map[26][13] = 3;
-  
-  // Clear the center area completely (just to be safe)
-  for (var i = 12; i < 20; i++) {
-    for (var j = 12; j < 20; j++) {
-      g_map[i][j] = 0;
     }
   }
   
@@ -201,24 +329,24 @@ function buildWallsFromMap() {
   // Clear existing walls
   g_walls = [];
   
-  // Create walls based on the map values
-  for (var x = 0; x < 32; x++) {
-    for (var z = 0; z < 32; z++) {
-      if (g_map[x][z] > 0) { // If there's a wall here
-        for (var y = 0; y < g_map[x][z]; y++) { // Loop through the height
+  // Create walls based on the map values - iterate through all existing coordinates
+  // Check all defined coordinates in the map
+  for (var x in g_map) {
+    x = parseInt(x); // Convert string key to integer
+    for (var z in g_map[x]) {
+      z = parseInt(z); // Convert string key to integer
+      
+      if (g_map[x][z] && g_map[x][z].height > 0) { // If there's a wall here
+        for (var y = 0; y < g_map[x][z].height; y++) { // Loop through the height
           var wall = new Cube();
           
-          // Main wall color (slightly off-white to show borders)
-          wall.color = [0.95, 0.95, 0.95, 1.0];
+          // Set all walls to use color instead of texture
+          wall.textureNum = -2;
           
-          // Alternate colors for top of wall
-          if (y === g_map[x][z] - 1) {
-            wall.color = [1.0, 1.0, 1.0, 1.0]; // Bright white for top
-          }
+          // Set wall color to white
+          wall.color = [1.0, 1.0, 1.0, 1.0];
           
-          wall.textureNum = -2; // Use solid color without texture mapping
-          
-          // Position the wall cube - slightly farther apart but still close
+          // Position the wall cube - using the actual coordinates
           wall.matrix.translate((x - 16) * 0.22, y - 0.75, (z - 16) * 0.22); 
           
           // Scale smaller to create more visible gaps between cubes
@@ -243,6 +371,68 @@ function drawMap() {
       wall.render();
     }
   }
+  
+  // Draw a highlight around the targeted block
+  drawTargetedBlockHighlight();
+}
+
+// Function to draw a wireframe highlight around the targeted block
+function drawTargetedBlockHighlight() {
+  // Get the block coordinates that are currently targeted
+  var targetCoord = getBlockInFrontOfCamera();
+  
+  // Create a slightly larger cube to serve as a highlight
+  if (targetCoord) {
+    // Ensure the map has this coordinate
+    extendMapIfNeeded(targetCoord.x, targetCoord.z);
+    
+    // Now we can safely access the height
+    var height = g_map[targetCoord.x][targetCoord.z].height;
+    
+    var highlightCube = new Cube();
+    highlightCube.textureNum = -2; // Solid color
+    highlightCube.color = [1.0, 0.5, 0.0, 1.0]; // Orange highlight
+    
+    // Position the cube at the targeted location
+    highlightCube.matrix.translate(
+      (targetCoord.x - 16) * 0.22, 
+      height - 0.75, 
+      (targetCoord.z - 16) * 0.22
+    );
+    
+    // Make it slightly larger than the regular cubes
+    highlightCube.matrix.scale(0.8, 1.0, 0.8);
+    
+    // Only render the wireframe outline
+    if (g_useOptimizedRendering) {
+      highlightCube.renderFastWireframe();
+    } else {
+      highlightCube.renderWireframe();
+    }
+    
+    // Update the block info display
+    updateBlockInfoDisplay(targetCoord);
+  }
+}
+
+// Update the block info display with the current target information
+function updateBlockInfoDisplay(targetCoord) {
+  const blockInfo = document.getElementById('block-info');
+  if (!blockInfo) return;
+  
+  // Ensure the map has an entry for this coordinate
+  extendMapIfNeeded(targetCoord.x, targetCoord.z);
+  
+  const currentHeight = g_map[targetCoord.x][targetCoord.z].height;
+  
+  blockInfo.innerHTML = `
+    <strong style="font-size: 16px;">Target Block:</strong>
+    <ul style="margin: 5px 0; padding-left: 20px;">
+      <li>X: ${targetCoord.x}, Z: ${targetCoord.z}</li>
+      <li>Height: ${currentHeight} block(s)</li>
+      <li>Action: ${currentHeight > 0 ? "Space to add, Backspace to delete" : "Space to add"}</li>
+    </ul>
+  `;
 }
 
 function main() {
@@ -274,11 +464,22 @@ function main() {
   g_lastTime = performance.now();
   requestAnimationFrame(tick);
   
-  // Register event handlers
-  canvas.onmousedown = mouseDown;
-  canvas.onmouseup = mouseUp;
-  canvas.onmousemove = mouseMove;
-
+  // Register event handlers at document level for continuous rotation
+  canvas.onmousedown = function(ev) {
+    mouseDown(ev);
+    
+    // Add temporary document-level handlers that will be removed when mouse is released
+    document.onmousemove = mouseMove;
+    document.onmouseup = function(ev) {
+      mouseUp(ev);
+      document.onmousemove = null;
+      document.onmouseup = null;
+    };
+    
+    // Prevent default behaviors
+    ev.preventDefault();
+  };
+  
   document.onkeydown = keydown;
   
   // Add event listener for animation toggle button
@@ -288,90 +489,52 @@ function main() {
     this.style.backgroundColor = animationRunning ? '#4CAF50' : '#555555';
   });
   
-  // Add event listener for optimization toggle button
-  document.getElementById('optimizeToggleBtn').addEventListener('click', function() {
-    g_useOptimizedRendering = !g_useOptimizedRendering;
-    this.textContent = g_useOptimizedRendering ? 'Optimization: ON' : 'Optimization: OFF';
-    this.style.backgroundColor = g_useOptimizedRendering ? '#4CAF50' : '#555555';
-    console.log('Optimization ' + (g_useOptimizedRendering ? 'enabled' : 'disabled'));
-    updateFPSDisplay();
-  });
-  
-  // Add event listeners for foot sliders
-  document.getElementById('frontRightFootSlider').addEventListener('input', function() {
-    g_frontRightFootAngle = parseFloat(this.value);
-    document.getElementById('frontRightFootValue').textContent = this.value + '°';
-  });
-  
-  document.getElementById('frontLeftFootSlider').addEventListener('input', function() {
-    g_frontLeftFootAngle = parseFloat(this.value);
-    document.getElementById('frontLeftFootValue').textContent = this.value + '°';
-  });
-  
-  document.getElementById('backRightFootSlider').addEventListener('input', function() {
-    g_backRightFootAngle = parseFloat(this.value);
-    document.getElementById('backRightFootValue').textContent = this.value + '°';
-  });
-  
-  document.getElementById('backLeftFootSlider').addEventListener('input', function() {
-    g_backLeftFootAngle = parseFloat(this.value);
-    document.getElementById('backLeftFootValue').textContent = this.value + '°';
-  });
+  // Create a combined UI info panel
+  const infoPanel = document.createElement('div');
+  infoPanel.style.marginTop = '10px';
+  infoPanel.style.backgroundColor = '#f5f5f5';
+  infoPanel.style.padding = '12px';
+  infoPanel.style.borderRadius = '5px';
+  infoPanel.style.textAlign = 'left';
+  infoPanel.style.maxWidth = '600px';
+  infoPanel.style.margin = '10px auto';
+  infoPanel.innerHTML = `
+    <div id="block-info" style="margin-bottom: 15px; padding: 8px; background-color: #e6f7ff; border-radius: 4px;">
+      <strong style="font-size: 16px;">Target Block:</strong> None selected
+    </div>
+    <div style="margin-bottom: 15px; border-left: 4px solid #4CAF50; padding-left: 10px;">
+      <p style="margin: 5px 0; font-size: 18px;"><strong>Block Controls:</strong></p>
+      <ul style="margin-top: 5px; padding-left: 20px; font-size: 16px;">
+        <li><strong style="font-size: 18px; color: #4CAF50;">SPACE</strong> - Add a block</li>
+        <li><strong style="font-size: 18px; color: #f44336;">BACKSPACE</strong> - Delete a block</li>
+      </ul>
+    </div>
+    <div style="margin-bottom: 15px;">
+      <p style="margin: 5px 0;"><strong>Movement Controls:</strong></p>
+      <ul style="margin-top: 5px; padding-left: 20px;">
+        <li><strong>WASD</strong> - Move camera horizontally</li>
+        <li><strong>R/T</strong> - Move camera up/down</li>
+        <li><strong>Mouse</strong> - Look around (360° rotation)</li>
+        <li><strong>Q/E</strong> - Rotate model</li>
+      </ul>
+    </div>
+    <div>
+      <p style="margin: 5px 0;"><strong>Textures:</strong></p>
+      <ul style="margin-top: 5px; padding-left: 20px;">
+        <li>Sky (blue): Sky texture</li>
+        <li>Ground (gray): Ground texture</li>
+        <li>Blocks: White cubes with orange highlight for selected</li>
+      </ul>
+    </div>
+  `;
+  document.querySelector('canvas').parentNode.appendChild(infoPanel);
 
+  // Add event listener for camera angle slider
   document.getElementById('cameraAngleSlider').addEventListener('input', function() { 
     g_globalAngle = parseFloat(this.value); 
+    document.getElementById('cameraAngleValue').textContent = this.value + '°';
   });
 
-  const canvasContainer = document.querySelector('canvas').parentNode;
-  const mouseControlMsg = document.createElement('p');
-  mouseControlMsg.innerHTML = '<strong>Mouse Control:</strong> Click and drag to rotate the giraffe';
-  mouseControlMsg.style.textAlign = 'center';
-  mouseControlMsg.style.marginTop = '5px';
-  canvasContainer.appendChild(mouseControlMsg);
-  
-  document.getElementById('frontRightLegSlider').addEventListener('input', function() {
-    g_frontRightLegAngle = parseFloat(this.value);
-    document.getElementById('frontRightLegValue').textContent = this.value + '°';
-  });
-  
-  document.getElementById('frontLeftLegSlider').addEventListener('input', function() {
-    g_frontLeftLegAngle = parseFloat(this.value);
-    document.getElementById('frontLeftLegValue').textContent = this.value + '°';
-  });
-  
-  document.getElementById('backRightLegSlider').addEventListener('input', function() {
-    g_backRightLegAngle = parseFloat(this.value);
-    document.getElementById('backRightLegValue').textContent = this.value + '°';
-  });
-  
-  document.getElementById('backLeftLegSlider').addEventListener('input', function() {
-    g_backLeftLegAngle = parseFloat(this.value);
-    document.getElementById('backLeftLegValue').textContent = this.value + '°';
-  });
-  
-  document.getElementById('frontRightCalfSlider').addEventListener('input', function() {
-    g_frontRightCalfAngle = parseFloat(this.value);
-    document.getElementById('frontRightCalfValue').textContent = this.value + '°';
-  });
-  
-  document.getElementById('frontLeftCalfSlider').addEventListener('input', function() {
-    g_frontLeftCalfAngle = parseFloat(this.value);
-    document.getElementById('frontLeftCalfValue').textContent = this.value + '°';
-  });
-  
-  document.getElementById('backRightCalfSlider').addEventListener('input', function() {
-    g_backRightCalfAngle = parseFloat(this.value);
-    document.getElementById('backRightCalfValue').textContent = this.value + '°';
-  });
-  
-  document.getElementById('backLeftCalfSlider').addEventListener('input', function() {
-    g_backLeftCalfAngle = parseFloat(this.value);
-    document.getElementById('backLeftCalfValue').textContent = this.value + '°';
-  });
-  
-
-
-  
   // Set clear color and clear canvas
   gl.clearColor(0.0, 0.0, 0.0, 1.0);
   gl.clear(gl.COLOR_BUFFER_BIT);
@@ -397,40 +560,46 @@ function keydown(ev){
   if (ev.keyCode == 83) { // S key - move backward
     g_camera.back();
   }
-  if (ev.keyCode == 81) { // Q key - pan left
-    g_camera.panLeft();
+  if (ev.keyCode == 82) { // R key - move up
+    g_camera.moveUp();
   }
-  if (ev.keyCode == 69) { // E key - pan right
-    g_camera.panRight();
+  if (ev.keyCode == 84) { // T key - move down
+    g_camera.moveDown();
+  }
+  if (ev.keyCode == 81) { // Q key - rotate model left
+    g_globalAngle -= 5;
+  }
+  if (ev.keyCode == 69) { // E key - rotate model right
+    g_globalAngle += 5;
+  }
+  if (ev.keyCode == 32) { // Space key - add block
+    addBlock();
+    ev.preventDefault(); // Prevent page scrolling
+  }
+  if (ev.keyCode == 8) { // Backspace key - delete block
+    deleteBlock();
+    ev.preventDefault(); // Prevent browser back navigation
   }
   renderScene();
-  console.log(ev.keyCode)
 }
-// This function is no longer used - textures are loaded in initTextures
 
 function initTextures(gl) {
   // Load sky texture (texture0)
   var skyImage = new Image();
-  if (!skyImage) {
-    console.log('Failed to create the sky image object');
+  var skyTexture = gl.createTexture(); // Define texture object earlier
+  if (!skyImage || !skyTexture) {
+    console.log('Failed to create sky image or texture object');
     return false;
   }
-  
+
   // Load ground texture (texture1)
   var groundImage = new Image();
-  if (!groundImage) {
-    console.log('Failed to create the ground image object');
-    return false;
-  }
-  
-  // Create textures
-  var skyTexture = gl.createTexture();
   var groundTexture = gl.createTexture();
-  if (!skyTexture || !groundTexture) {
-    console.log('Failed to create texture objects');
+  if (!groundImage || !groundTexture) {
+    console.log('Failed to create ground image or texture object');
     return false;
   }
-  
+
   // Register sky texture handler
   skyImage.onload = function() {
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
@@ -439,8 +608,9 @@ function initTextures(gl) {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, skyImage);
     gl.uniform1i(u_Sampler0, 0);
+    console.log("Sky texture loaded (texture0 from sky.jpg)");
   };
-  
+
   // Register ground texture handler
   groundImage.onload = function() {
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
@@ -449,12 +619,27 @@ function initTextures(gl) {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, groundImage);
     gl.uniform1i(u_Sampler1, 1);
+    console.log("Ground texture loaded (texture1 from ground.jpg)");
   };
-  
-  // Start loading the images
+
+  // Add error handling for texture loading
+  skyImage.onerror = function() { 
+    console.error("Failed to load sky.jpg"); 
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, skyTexture);
+    var fallbackData = new Uint8Array([100, 150, 255, 255]); // Blue
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, fallbackData);
+  };
+  groundImage.onerror = function() { 
+    console.error("Failed to load ground.jpg"); 
+    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, groundTexture);
+    var fallbackData = new Uint8Array([150, 100, 50, 255]); // Brown
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, fallbackData);
+  };
+
+  // Start loading the images with correct paths
   skyImage.src = 'sky.jpg';
   groundImage.src = 'ground.jpg';
-  
+
   return true;
 }
 
@@ -660,29 +845,35 @@ function mouseDown(ev) {
     return;
   }
   
-  g_isDragging = true;
+  // Camera rotation is now the default
+  g_isDraggingCamera = true;
   g_lastX = ev.clientX;
   g_lastY = ev.clientY;
 }
 
 function mouseUp(ev) {
-  g_isDragging = false;
+  g_isDraggingCamera = false;
 }
 
 function mouseMove(ev) {
-  if (!g_isDragging) return;
+  if (!g_isDraggingCamera) return;
   
   const dx = ev.clientX - g_lastX;
   const dy = ev.clientY - g_lastY;
   
-  g_globalAngle += dx * 0.5;  
-  g_globalXAngle += dy * 0.5; 
+  // Camera rotation is the default behavior now - no angle limits
+  if (dx !== 0) {
+    g_camera.pan(-dx * 0.2);  // Negative for natural camera movement
+  }
   
-  if (g_globalXAngle > 90) g_globalXAngle = 90;
-  if (g_globalXAngle < -90) g_globalXAngle = -90;
+  if (dy !== 0) {
+    g_camera.tilt(-dy * 0.2);
+  }
   
   g_lastX = ev.clientX;
   g_lastY = ev.clientY;
+  
+  renderScene(); // Update the scene immediately for smoother rotation
 }
 
 function addPoint(ev) {
@@ -762,8 +953,13 @@ function renderScene() {
   // Clear canvas
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   
-  // Activate texture unit 0
+  // Make sure GL uses the correct texture for each texture unit
   gl.activeTexture(gl.TEXTURE0);
+  gl.activeTexture(gl.TEXTURE1);
+  
+  // Set texture uniforms
+  gl.uniform1i(u_Sampler0, 0);
+  gl.uniform1i(u_Sampler1, 1);
 
   var globalRotMat = new Matrix4();
   globalRotMat.rotate(g_globalXAngle, 1, 0, 0); 
@@ -779,8 +975,8 @@ function renderScene() {
 
   // Draw the sky
   var sky = new Cube();
-  sky.color = [1.0, 0.0, 0.0, 1.0];
-  sky.textureNum = 0;
+  sky.color = [1.0, 1.0, 1.0, 1.0]; // White color to not affect texture
+  sky.textureNum = 0;  // Use sky texture
   sky.matrix.scale(50, 50, 50);
   sky.matrix.translate(-0.5, -0.5, -0.5);
   if (g_useOptimizedRendering) {
