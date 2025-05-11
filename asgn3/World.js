@@ -165,6 +165,10 @@ var g_raindrops = [];
 var g_numRaindrops = 200;          
 var g_wowFactorEnabled = false;    
 var g_wallsVisible = true; 
+
+// Add a new variable to track if pointer lock is active
+var g_pointerLockActive = false;
+
 function worldToMapCoord(x, z) {
   var mapX = Math.round(x / 0.22 + 16);
   var mapZ = Math.round(z / 0.22 + 16);
@@ -489,20 +493,24 @@ function main() {
   g_lastTime = performance.now();
   requestAnimationFrame(tick);
   
-  canvas.onmousedown = function(ev) {
-    mouseDown(ev);
-    
-    document.onmousemove = mouseMove;
-    document.onmouseup = function(ev) {
-      mouseUp(ev);
-      document.onmousemove = null;
-      document.onmouseup = null;
-    };
-    
-    // Prevent default behaviors
-    ev.preventDefault();
-  };
-
+  // Set up mouse control for pointer lock
+  canvas.addEventListener('click', function() {
+    if (!g_pointerLockActive) {
+      canvas.requestPointerLock = canvas.requestPointerLock || 
+                                 canvas.mozRequestPointerLock ||
+                                 canvas.webkitRequestPointerLock;
+      canvas.requestPointerLock();
+    }
+  });
+  
+  // Set up pointer lock change event
+  document.addEventListener('pointerlockchange', pointerLockChangeHandler, false);
+  document.addEventListener('mozpointerlockchange', pointerLockChangeHandler, false);
+  document.addEventListener('webkitpointerlockchange', pointerLockChangeHandler, false);
+  
+  // Set up mouse movement handler
+  document.addEventListener('mousemove', handleMouseMovement, false);
+  
   document.onkeydown = keydown;
   
   document.getElementById('animToggleBtn').addEventListener('click', function() {
@@ -565,35 +573,26 @@ function main() {
       <strong style="font-size: 16px;">Target Block:</strong> None selected
     </div>
     <div style="margin-bottom: 15px; border-left: 4px solid #4CAF50; padding-left: 10px;">
-      <p style="margin: 5px 0; font-size: 18px;"><strong>Block Controls:</strong></p>
-      <ul style="margin-top: 5px; padding-left: 20px; font-size: 16px;">
-        <li><strong style="font-size: 18px; color: #4CAF50;">SPACE</strong> - Add a block</li>
-        <li><strong style="font-size: 18px; color: #f44336;">BACKSPACE</strong> - Delete a block</li>
-      </ul>
-    </div>
-    <div style="margin-bottom: 15px;">
-      <p style="margin: 5px 0;"><strong>Movement Controls:</strong></p>
-      <ul style="margin-top: 5px; padding-left: 20px;">
+      <p style="margin: 5px 0; font-size: 18px;"><strong>Controls:</strong></p>
+      <ul style="margin-top: 5px; padding-left: 20px; font-size: 15px;">
+        <li><strong style="color: #4CAF50;">SPACE</strong> - Add a block / Collect gem (in game)</li>
+        <li><strong style="color: #f44336;">BACKSPACE</strong> - Delete a block</li>
         <li><strong>WASD</strong> - Move camera horizontally</li>
         <li><strong>R/T</strong> - Move camera up/down</li>
-        <li><strong>Mouse</strong> - Look around (360° rotation)</li>
+        <li><strong>Mouse</strong> - Look around (360° rotation, ESC to exit mouse lock)</li>
         <li><strong>Q/E</strong> - Rotate model</li>
-      </ul>
-    </div>
-    <div style="margin-bottom: 15px;">
-      <p style="margin: 5px 0;"><strong>Game Controls:</strong></p>
-      <ul style="margin-top: 5px; padding-left: 20px;">
-        <li><strong>G</strong> - Start gem hunt game</li>
-        <li><strong>SPACE</strong> - Collect gem (when near)</li>
+        <li><strong>G</strong> - Start/stop gem hunt game</li>
+        <li><strong>V</strong> - Toggle wall visibility</li>
       </ul>
     </div>
     <div>
-      <p style="margin: 5px 0;"><strong>Textures:</strong></p>
+      <p style="margin: 5px 0;"><strong>Textures & Elements:</strong></p>
       <ul style="margin-top: 5px; padding-left: 20px;">
-      <li>Sky (blue): Sky texture</li>
-      <li>Ground (gray): Ground texture</li>
-        <li>Blocks: White cubes with orange highlight for selected</li>
-    </ul>
+        <li>Sky (blue): Sky texture</li>
+        <li>Ground (gray): Ground texture</li>
+        <li>Blocks: Brown earth blocks with orange highlight for targeted blocks</li>
+        <li>Gems: Colored gems to collect during game mode</li>
+      </ul>
     </div>
   `;
   document.querySelector('canvas').parentNode.appendChild(infoPanel);
@@ -914,42 +913,38 @@ function connectVariablesToGLSL() {
   return true;
 }
 
-function mouseDown(ev) {
-  if (ev.shiftKey) {
-    g_isPokeAnimating = true;
-    g_pokeAnimTime = 0;
-    console.log('Poke animation triggered!');
-    return;
+function pointerLockChangeHandler() {
+  if (document.pointerLockElement === canvas || 
+      document.mozPointerLockElement === canvas ||
+      document.webkitPointerLockElement === canvas) {
+    g_pointerLockActive = true;
+    showStatusMessage("Mouse look activated (press ESC to exit mouse lock)", false);
+  } else {
+    g_pointerLockActive = false;
   }
-  
-  g_isDraggingCamera = true;
-  g_lastX = ev.clientX;
-  g_lastY = ev.clientY;
 }
 
-function mouseUp(ev) {
-  g_isDraggingCamera = false;
+function handleMouseMovement(e) {
+  if (!g_pointerLockActive) return;
+  
+  var movementX = e.movementX || e.mozMovementX || e.webkitMovementX || 0;
+  var movementY = e.movementY || e.mozMovementY || e.webkitMovementY || 0;
+  
+  var sensitivityX = 0.2;
+  var sensitivityY = 0.1;
+  
+  if (movementX !== 0) {
+    g_camera.pan(-movementX * sensitivityX);
+  }
+  
+  if (movementY !== 0) {
+    g_camera.tilt(-movementY * sensitivityY);
+  }
+  
+  renderScene();
 }
 
-function mouseMove(ev) {
-  if (!g_isDraggingCamera) return;
-  
-  const dx = ev.clientX - g_lastX;
-  const dy = ev.clientY - g_lastY;
-  
-  if (dx !== 0) {
-  g_camera.pan(-dx * 0.2);  
-  }
-  
-  if (dy !== 0) {
-  g_camera.tilt(-dy * 0.2);
-  }
-  
-  g_lastX = ev.clientX;
-  g_lastY = ev.clientY;
-  
-  renderScene(); 
-}
+
 
 function addPoint(ev) {
   var x = ev.clientX; 
