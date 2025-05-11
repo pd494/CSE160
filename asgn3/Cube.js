@@ -122,18 +122,14 @@ class Cube {
     drawTriangle3DUV([0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0], [0.0, 0.0, 1.0, 1.0, 0.0, 1.0]);
   }
   
-  // New optimized rendering method that batches all vertices together
   renderFast() {
     var rgba = this.color;
     
-    // Set texture and model matrix exactly as in the original render method
     gl.uniform1i(u_whichTexture, this.textureNum);
     gl.uniformMatrix4fv(u_ModelMatrix, false, this.matrix.elements);
     
-    // Initialize array to hold all vertices
     var allverts = [];
     
-    // Front face (z = 0)
     gl.uniform4f(u_FragColor, rgba[0], rgba[1], rgba[2], rgba[3]);
     allverts = allverts.concat([
       0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 0.0,  // First triangle
@@ -179,11 +175,9 @@ class Cube {
     drawTriangle3D(allverts);
   }
   
-  // New optimized rendering method with UV coordinates
   renderFastUV() {
     var rgba = this.color;
     
-    // Set texture and model matrix
     gl.uniform1i(u_whichTexture, this.textureNum);
     gl.uniformMatrix4fv(u_ModelMatrix, false, this.matrix.elements);
     
@@ -194,110 +188,99 @@ class Cube {
     // Front face (z = 0)
     gl.uniform4f(u_FragColor, rgba[0], rgba[1], rgba[2], rgba[3]);
     allverts = allverts.concat([
-      0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 0.0,  // First triangle
-      0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0   // Second triangle
+      0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 0.0,    
+      0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0  
     ]);
     alluvs = alluvs.concat([
-      0.0, 0.0, 1.0, 1.0, 1.0, 0.0,  // First triangle UVs
-      0.0, 0.0, 0.0, 1.0, 1.0, 1.0   // Second triangle UVs
+      0.0, 0.0, 1.0, 1.0, 1.0, 0.0,  
+      0.0, 0.0, 0.0, 1.0, 1.0, 1.0   
     ]);
     
     // Back face (z = 1)
     gl.uniform4f(u_FragColor, rgba[0]*0.9, rgba[1]*0.9, rgba[2]*0.9, rgba[3]);
     allverts = allverts.concat([
-      0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0,  // First triangle
-      0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 1.0   // Second triangle
+      0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0,  
+      0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 1.0   
     ]);
     alluvs = alluvs.concat([
-      0.0, 0.0, 0.0, 1.0, 1.0, 1.0,  // First triangle UVs
-      0.0, 0.0, 1.0, 1.0, 1.0, 0.0   // Second triangle UVs
+      0.0, 0.0, 0.0, 1.0, 1.0, 1.0,  
+      0.0, 0.0, 1.0, 1.0, 1.0, 0.0  
     ]);
     
     // Top face (y = 1)
     gl.uniform4f(u_FragColor, rgba[0]*0.8, rgba[1]*0.8, rgba[2]*0.8, rgba[3]);
     allverts = allverts.concat([
-      0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0, 1.0,  // First triangle
-      0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 0.0, 1.0, 1.0   // Second triangle
+      0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0, 1.0,  
+      0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 0.0, 1.0, 1.0  
     ]);
     alluvs = alluvs.concat([
-      0.0, 0.0, 1.0, 0.0, 1.0, 1.0,  // First triangle UVs
-      0.0, 0.0, 1.0, 1.0, 0.0, 1.0   // Second triangle UVs
+      0.0, 0.0, 1.0, 0.0, 1.0, 1.0,  
+      0.0, 0.0, 1.0, 1.0, 0.0, 1.0   
     ]);
     
     // Bottom face (y = 0)
     gl.uniform4f(u_FragColor, rgba[0]*0.7, rgba[1]*0.7, rgba[2]*0.7, rgba[3]);
     allverts = allverts.concat([
-      0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0,  // First triangle
-      0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0   // Second triangle
+      0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0,  
+      0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0   
     ]);
     alluvs = alluvs.concat([
-      0.0, 0.0, 0.0, 1.0, 1.0, 1.0,  // First triangle UVs
-      0.0, 0.0, 1.0, 1.0, 1.0, 0.0   // Second triangle UVs
+      0.0, 0.0, 0.0, 1.0, 1.0, 1.0,  
+      0.0, 0.0, 1.0, 1.0, 1.0, 0.0   
     ]);
     
     // Right face (x = 1)
     gl.uniform4f(u_FragColor, rgba[0]*0.6, rgba[1]*0.6, rgba[2]*0.6, rgba[3]);
     allverts = allverts.concat([
-      1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 1.0,  // First triangle
-      1.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0   // Second triangle
+      1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 1.0,  
+      1.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0   
     ]);
     alluvs = alluvs.concat([
-      0.0, 0.0, 1.0, 0.0, 1.0, 1.0,  // First triangle UVs
-      0.0, 0.0, 1.0, 1.0, 0.0, 1.0   // Second triangle UVs
+      0.0, 0.0, 1.0, 0.0, 1.0, 1.0,  
+      0.0, 0.0, 1.0, 1.0, 0.0, 1.0   
     ]);
     
     // Left face (x = 0)
     gl.uniform4f(u_FragColor, rgba[0]*0.5, rgba[1]*0.5, rgba[2]*0.5, rgba[3]);
     allverts = allverts.concat([
-      0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0,  // First triangle
-      0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0   // Second triangle
+      0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0,  
+      0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0   
     ]);
     alluvs = alluvs.concat([
-      0.0, 0.0, 0.0, 1.0, 1.0, 1.0,  // First triangle UVs
-      0.0, 0.0, 1.0, 1.0, 0.0, 1.0   // Second triangle UVs
+      0.0, 0.0, 0.0, 1.0, 1.0, 1.0,  
+      0.0, 0.0, 1.0, 1.0, 0.0, 1.0   
     ]);
     
-    // Draw all triangles at once with UV mapping
     drawTriangle3DUVFast(allverts, alluvs);
   }
   
-  // Method to render cube as wireframe
   renderWireframe() {
     var rgba = this.color;
     
-    // Set texture and model matrix
     gl.uniform1i(u_whichTexture, this.textureNum);
     gl.uniformMatrix4fv(u_ModelMatrix, false, this.matrix.elements);
     
-    // Use a bright color for the wireframe
     gl.uniform4f(u_FragColor, rgba[0], rgba[1], rgba[2], rgba[3]);
     
-    // Draw front face edges
     drawLines([0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 0.0]);
     
-    // Draw back face edges
     drawLines([0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 1.0, 1.0]);
     
-    // Draw connecting edges between front and back
     drawLines([0.0, 0.0, 0.0, 0.0, 0.0, 1.0], gl.LINES);
     drawLines([1.0, 0.0, 0.0, 1.0, 0.0, 1.0], gl.LINES);
     drawLines([1.0, 1.0, 0.0, 1.0, 1.0, 1.0], gl.LINES);
     drawLines([0.0, 1.0, 0.0, 0.0, 1.0, 1.0], gl.LINES);
   }
   
-  // Optimized wireframe rendering method
   renderFastWireframe() {
     var rgba = this.color;
     
-    // Set texture and model matrix
     gl.uniform1i(u_whichTexture, this.textureNum);
     gl.uniformMatrix4fv(u_ModelMatrix, false, this.matrix.elements);
     
-    // Use a bright color for the wireframe
     gl.uniform4f(u_FragColor, rgba[0], rgba[1], rgba[2], rgba[3]);
     
-    // All edges in a single buffer
-    // Front face (clockwise)
+    
     var lineVertices = [
       // Front face
       0.0, 0.0, 0.0, 
@@ -306,7 +289,6 @@ class Cube {
       0.0, 1.0, 0.0,
       0.0, 0.0, 0.0, // Close the loop
       
-      // Back face (separate - can't do in one loop)
       0.0, 0.0, 1.0,
       1.0, 0.0, 1.0,
       1.0, 1.0, 1.0,
@@ -314,10 +296,8 @@ class Cube {
       0.0, 0.0, 1.0, // Close the loop
     ];
     
-    // Draw the front and back faces
     drawLines(lineVertices, gl.LINE_STRIP);
     
-    // Draw the four connecting edges as individual lines
     var connectingEdges = [
       // Connect front to back corners
       0.0, 0.0, 0.0, 0.0, 0.0, 1.0,

@@ -64,10 +64,14 @@ var g_globalAngle = 0;
 var g_globalXAngle = 0; 
 var g_global = 5;   
 
-// Texture variables
+var g_gems = [];
+var g_gemsCollected = 0;
+var g_totalGems = 5;
+var g_gameStarted = false;
+var g_gameComplete = false;
+var g_gameStartTime = 0;
+var g_gameTimer = 0;
 
-
-// Texture variables
 var u_Sampler0;
 var u_Sampler1;
 var u_Sampler2;
@@ -75,7 +79,6 @@ var u_Sampler3;
 var u_Sampler4;
 var u_whichTexture;
 
-// Mouse tracking variables
 var g_isDragging = false;
 var g_lastX = -1;
 var g_lastY = -1;
@@ -83,43 +86,32 @@ var currentColor = [1.0, 0.0, 0.0, 1.0];
 var currentSize = 10;  
 var currentSegments = 10;  
 
-// Joint angle variables for legs
-// Upper leg (thigh) joint angles
 var g_frontRightLegAngle = 0;  
 var g_frontLeftLegAngle = 0;   
 var g_backRightLegAngle = 0;   
 var g_backLeftLegAngle = 0;    
 
-// Lower leg (calf) joint angles
 var g_frontRightCalfAngle = 0;  
 var g_frontLeftCalfAngle = 0;   
 var g_backRightCalfAngle = 0;   
 var g_backLeftCalfAngle = 0;    
 
-// Foot joint angles
 var g_frontRightFootAngle = 0;    
 var g_frontLeftFootAngle = 0;   
 var g_backRightFootAngle = 0;   
 var g_backLeftFootAngle = 0;    
 
-// Drawing mode variables
 var currentDrawingMode = 'point';  
 
-
-// Animation control
 var animationRunning = true; 
 var animationId = null;
 
-// Global time variable for animation
 var g_time = 0;
 
-// Poke animation variables
 var g_isPokeAnimating = false;     
 var g_pokeAnimTime = 0;       
 var g_pokeAnimDuration = 60;  
 
-// Animation angles - these will be updated by updateAnimationAngles()
-// Leg animation variables
 var g_rightLegAnimAngle = 0;
 var g_rightCalfAnimAngle = 0;
 var g_rightFootAnimAngle = 0;
@@ -133,83 +125,80 @@ var g_backLeftLegAnimAngle = 0;
 var g_backLeftCalfAnimAngle = 0;
 var g_backLeftFootAnimAngle = 0;
 
-// Head and body part animation variables
 var g_headAnimAngle = 0;
 var g_neckAnimAngle = 0;
 var g_tailAnimAngle = 0;
 var g_bodyAnimOffset = 0;
 
-// Global Variables for controlling rendering optimization
-var g_useOptimizedRendering = false; // Set to false by default
+var g_useOptimizedRendering = false;
 
-// FPS counter variables
 var g_lastTime = 0;
 var g_frameCount = 0;
 var g_frameTime = 0;
 var g_fps = 0;
 var g_fpsElement;
 
-// Define a 32x32 map where each value has height and texture information
 var g_map = [];
-var g_walls = []; // Array to store wall objects
+var g_walls = [];
 
-// Map modification variables
-var g_currentBlockColor = [1.0, 1.0, 1.0, 1.0]; // Default block color is white
+var g_currentBlockColor = [1.0, 1.0, 1.0, 1.0];
 
-// Mouse camera control variables
 var g_isDraggingCamera = false;  
 var g_mouseLastX = -1;
 var g_mouseLastY = -1;
-var g_cameraMode = false;  // Toggle between model rotation and camera rotation
+var g_cameraMode = false;  
 
-// Function to convert world coordinates to map coordinates
+var g_showBirds = false;          
+var g_showTrees = true;          
+var g_birds = [];                 
+var g_trees = [];                 
+var g_giraffeWalking = false;     
+var g_giraffePosition = [0, 0, 0]; 
+var g_giraffeDirection = 0;        
+var g_giraffeWalkSpeed = 0.02;     
+var g_giraffePath = [];            
+var g_giraffePathIndex = 0;        
+var g_numBirds = 10;               
+var g_numTrees = 8;                
+var g_showRain = false;            
+var g_raindrops = [];              
+var g_numRaindrops = 200;          
+var g_wowFactorEnabled = false;    
+
 function worldToMapCoord(x, z) {
-  // Using the same conversion as in buildWallsFromMap but in reverse,
-  // now allowing coordinates outside the original 32x32 range
   var mapX = Math.round(x / 0.22 + 16);
   var mapZ = Math.round(z / 0.22 + 16);
   
   return { x: mapX, z: mapZ };
 }
 
-// Function to determine which block is in front of the camera
 function getBlockInFrontOfCamera() {
-  // Get camera direction
   var direction = new Vector3();
   direction.set(g_camera.at);
   direction.sub(g_camera.eye);
   direction.normalize();
   
-  // Calculate position slightly in front of camera (3 units forward)
   var distance = 3.0;
   var targetX = g_camera.eye.elements[0] + direction.elements[0] * distance;
   var targetY = g_camera.eye.elements[1] + direction.elements[1] * distance;
   var targetZ = g_camera.eye.elements[2] + direction.elements[2] * distance;
   
-  // Convert to map coordinates
   var mapCoord = worldToMapCoord(targetX, targetZ);
   
   return mapCoord;
 }
 
-// Function to add a block in front of the camera
 function addBlock() {
   var blockCoord = getBlockInFrontOfCamera();
   
-  // Ensure coordinates are valid - expanded range to allow building outside walls
   if (blockCoord.x >= -100 && blockCoord.x < 100 && blockCoord.z >= -100 && blockCoord.z < 100) {
-    // If the coordinates are outside the original map range, extend the map
     extendMapIfNeeded(blockCoord.x, blockCoord.z);
     
-    // Get current height
     var currentHeight = g_map[blockCoord.x][blockCoord.z].height;
     
-    // Cap height at 10 to prevent building too high
     if (currentHeight < 10) {
-      // Increment height
       g_map[blockCoord.x][blockCoord.z].height = currentHeight + 1;
       
-      // Rebuild walls to reflect the change
       buildWallsFromMap();
       showStatusMessage(`Added block at (${blockCoord.x}, ${blockCoord.z})`);
       console.log(`Added block at (${blockCoord.x}, ${blockCoord.z}), new height: ${currentHeight + 1}`);
@@ -222,24 +211,18 @@ function addBlock() {
   }
 }
 
-// Function to delete a block in front of the camera
+//  delete a block in front of the camera
 function deleteBlock() {
   var blockCoord = getBlockInFrontOfCamera();
   
-  // Ensure coordinates are valid - expanded range to allow deleting outside walls
   if (blockCoord.x >= -100 && blockCoord.x < 100 && blockCoord.z >= -100 && blockCoord.z < 100) {
-    // If the coordinates are outside the original map range, check if the map extends there
     extendMapIfNeeded(blockCoord.x, blockCoord.z);
     
-    // Get current height
     var currentHeight = g_map[blockCoord.x][blockCoord.z].height;
     
-    // Only delete if there's something to delete
     if (currentHeight > 0) {
-      // Decrement height
       g_map[blockCoord.x][blockCoord.z].height = currentHeight - 1;
       
-      // Rebuild walls to reflect the change
       buildWallsFromMap();
       showStatusMessage(`Removed block at (${blockCoord.x}, ${blockCoord.z})`);
       console.log(`Removed block at (${blockCoord.x}, ${blockCoord.z}), new height: ${currentHeight - 1}`);
@@ -252,22 +235,17 @@ function deleteBlock() {
   }
 }
 
-// Function to extend the map to accommodate coordinates outside the original 32x32 range
 function extendMapIfNeeded(x, z) {
-  // Make sure the x coordinate array exists
   if (!g_map[x]) {
     g_map[x] = [];
   }
   
-  // Make sure the z coordinate exists in the x array
   if (!g_map[x][z]) {
     g_map[x][z] = { height: 0 };
   }
 }
 
-// Function to show a temporary status message
 function showStatusMessage(message, isError = false) {
-  // Create or get the status message element
   let statusElement = document.getElementById('status-message');
   
   if (!statusElement) {
@@ -285,74 +263,55 @@ function showStatusMessage(message, isError = false) {
     document.body.appendChild(statusElement);
   }
   
-  // Set message style based on type
   if (isError) {
-    statusElement.style.backgroundColor = '#f44336'; // Red for errors
+    statusElement.style.backgroundColor = '#f44336';
     statusElement.style.color = 'white';
   } else {
-    statusElement.style.backgroundColor = '#4CAF50'; // Green for success
+    statusElement.style.backgroundColor = '#4CAF50';
     statusElement.style.color = 'white';
   }
   
-  // Set message content
   statusElement.textContent = message;
   statusElement.style.opacity = '1';
   
-  // Auto-hide after 3 seconds
   setTimeout(() => {
     statusElement.style.opacity = '0';
   }, 3000);
 }
 
-// Initialize the map with walls around the perimeter and some random structures
 function initializeMap() {
-  // Create empty 32x32 map
   for (var i = 0; i < 32; i++) {
     g_map[i] = [];
     for (var j = 0; j < 32; j++) {
-      // Default: no walls (0)
       g_map[i][j] = { height: 0 };
       
-      // Create walls around the perimeter only
       if (i === 0 || i === 31 || j === 0 || j === 31) {
         g_map[i][j] = { height: 1 };
       }
     }
   }
   
-  // Build walls from the map
   buildWallsFromMap();
 }
 
-// Function to build wall objects from the map data
 function buildWallsFromMap() {
-  // Clear existing walls
   g_walls = [];
   
-  // Create walls based on the map values - iterate through all existing coordinates
-  // Check all defined coordinates in the map
   for (var x in g_map) {
-    x = parseInt(x); // Convert string key to integer
+    x = parseInt(x);
     for (var z in g_map[x]) {
-      z = parseInt(z); // Convert string key to integer
+      z = parseInt(z);
       
-      if (g_map[x][z] && g_map[x][z].height > 0) { // If there's a wall here
-        for (var y = 0; y < g_map[x][z].height; y++) { // Loop through the height
+      if (g_map[x][z] && g_map[x][z].height > 0) {
+        for (var y = 0; y < g_map[x][z].height; y++) {
           var wall = new Cube();
           
-          // Set all walls to use color instead of texture
           wall.textureNum = -2;
-          
-          // Set wall color to white
           wall.color = [1.0, 1.0, 1.0, 1.0];
           
-          // Position the wall cube - using the actual coordinates
           wall.matrix.translate((x - 16) * 0.22, y - 0.75, (z - 16) * 0.22); 
-          
-          // Scale smaller to create more visible gaps between cubes
           wall.matrix.scale(0.7, 0.9, 0.7);
           
-          // Store the wall in the array
           g_walls.push(wall);
         }
       }
@@ -360,9 +319,7 @@ function buildWallsFromMap() {
   }
 }
 
-// Function to draw all walls from the walls array
 function drawMap() {
-  // Draw all walls from the array
   for (var i = 0; i < g_walls.length; i++) {
     var wall = g_walls[i];
     if (g_useOptimizedRendering) {
@@ -372,55 +329,43 @@ function drawMap() {
     }
   }
   
-  // Draw a highlight around the targeted block
   drawTargetedBlockHighlight();
 }
 
-// Function to draw a wireframe highlight around the targeted block
 function drawTargetedBlockHighlight() {
-  // Get the block coordinates that are currently targeted
   var targetCoord = getBlockInFrontOfCamera();
   
-  // Create a slightly larger cube to serve as a highlight
   if (targetCoord) {
-    // Ensure the map has this coordinate
     extendMapIfNeeded(targetCoord.x, targetCoord.z);
     
-    // Now we can safely access the height
     var height = g_map[targetCoord.x][targetCoord.z].height;
     
     var highlightCube = new Cube();
-    highlightCube.textureNum = -2; // Solid color
-    highlightCube.color = [1.0, 0.5, 0.0, 1.0]; // Orange highlight
+    highlightCube.textureNum = -2;
+    highlightCube.color = [1.0, 0.5, 0.0, 1.0];
     
-    // Position the cube at the targeted location
     highlightCube.matrix.translate(
       (targetCoord.x - 16) * 0.22, 
       height - 0.75, 
       (targetCoord.z - 16) * 0.22
     );
     
-    // Make it slightly larger than the regular cubes
     highlightCube.matrix.scale(0.8, 1.0, 0.8);
     
-    // Only render the wireframe outline
     if (g_useOptimizedRendering) {
       highlightCube.renderFastWireframe();
     } else {
       highlightCube.renderWireframe();
     }
     
-    // Update the block info display
     updateBlockInfoDisplay(targetCoord);
   }
 }
 
-// Update the block info display with the current target information
 function updateBlockInfoDisplay(targetCoord) {
   const blockInfo = document.getElementById('block-info');
   if (!blockInfo) return;
   
-  // Ensure the map has an entry for this coordinate
   extendMapIfNeeded(targetCoord.x, targetCoord.z);
   
   const currentHeight = g_map[targetCoord.x][targetCoord.z].height;
@@ -436,7 +381,6 @@ function updateBlockInfoDisplay(targetCoord) {
 }
 
 function main() {
-  // Setup WebGL context
   if (!setupWebGL()) {
     console.log('Failed to setup WebGL context');
     return;
@@ -455,20 +399,18 @@ function main() {
   g_fpsElement = document.getElementById('fps-counter');
   updateFPSDisplay(); // Initialize with default values
 
-  // Initialize the map and build walls
   initializeMap();
+  
+  initializeNatureScene();
   
   initTextures(gl);
   
-  // Start the animation
   g_lastTime = performance.now();
   requestAnimationFrame(tick);
   
-  // Register event handlers at document level for continuous rotation
   canvas.onmousedown = function(ev) {
     mouseDown(ev);
     
-    // Add temporary document-level handlers that will be removed when mouse is released
     document.onmousemove = mouseMove;
     document.onmouseup = function(ev) {
       mouseUp(ev);
@@ -479,17 +421,56 @@ function main() {
     // Prevent default behaviors
     ev.preventDefault();
   };
-  
+
   document.onkeydown = keydown;
   
-  // Add event listener for animation toggle button
   document.getElementById('animToggleBtn').addEventListener('click', function() {
     animationRunning = !animationRunning;
     this.textContent = animationRunning ? 'Animation: ON' : 'Animation: OFF';
     this.style.backgroundColor = animationRunning ? '#4CAF50' : '#555555';
   });
   
-  // Create a combined UI info panel
+  const gameBtn = document.createElement('button');
+  gameBtn.id = 'gameBtn';
+  gameBtn.textContent = 'Start Gem Hunt Game (G)';
+  gameBtn.style.padding = '8px 16px';
+  gameBtn.style.backgroundColor = '#2196F3';
+  gameBtn.style.color = 'white';
+  gameBtn.style.border = 'none';
+  gameBtn.style.borderRadius = '4px';
+  gameBtn.style.cursor = 'pointer';
+  gameBtn.style.margin = '0 10px';
+  gameBtn.addEventListener('click', initializeGame);
+  
+  const wowFactorBtn = document.createElement('button');
+  wowFactorBtn.id = 'wowFactorBtn';
+  wowFactorBtn.textContent = 'Enable Wow Factor!';
+  wowFactorBtn.style.padding = '8px 16px';
+  wowFactorBtn.style.backgroundColor = '#FF5722';
+  wowFactorBtn.style.color = 'white';
+  wowFactorBtn.style.border = 'none';
+  wowFactorBtn.style.borderRadius = '4px';
+  wowFactorBtn.style.cursor = 'pointer';
+  wowFactorBtn.style.margin = '0 10px';
+  wowFactorBtn.style.fontWeight = 'bold';
+  wowFactorBtn.style.fontSize = '16px';
+  wowFactorBtn.style.boxShadow = '0 4px 8px rgba(0,0,0,0.3)';
+  wowFactorBtn.addEventListener('click', function() {
+    toggleWowFactor();
+    this.textContent = g_wowFactorEnabled ? 'Disable Wow Factor' : 'Enable Wow Factor!';
+    this.style.backgroundColor = g_wowFactorEnabled ? '#4CAF50' : '#FF5722';
+    
+    if (g_wowFactorEnabled) {
+      showStatusMessage('WOW! Birds, trees, walking giraffe and rain enabled!', false);
+    } else {
+      showStatusMessage('Wow Factor disabled.', false);
+    }
+  });
+  
+  const buttonContainer = document.querySelector('div[style*="display: flex; justify-content: center"]');
+  buttonContainer.appendChild(gameBtn);
+  buttonContainer.appendChild(wowFactorBtn);
+  
   const infoPanel = document.createElement('div');
   infoPanel.style.marginTop = '10px';
   infoPanel.style.backgroundColor = '#f5f5f5';
@@ -518,24 +499,29 @@ function main() {
         <li><strong>Q/E</strong> - Rotate model</li>
       </ul>
     </div>
+    <div style="margin-bottom: 15px;">
+      <p style="margin: 5px 0;"><strong>Game Controls:</strong></p>
+      <ul style="margin-top: 5px; padding-left: 20px;">
+        <li><strong>G</strong> - Start gem hunt game</li>
+        <li><strong>SPACE</strong> - Collect gem (when near)</li>
+      </ul>
+    </div>
     <div>
       <p style="margin: 5px 0;"><strong>Textures:</strong></p>
       <ul style="margin-top: 5px; padding-left: 20px;">
-        <li>Sky (blue): Sky texture</li>
-        <li>Ground (gray): Ground texture</li>
+      <li>Sky (blue): Sky texture</li>
+      <li>Ground (gray): Ground texture</li>
         <li>Blocks: White cubes with orange highlight for selected</li>
-      </ul>
+    </ul>
     </div>
   `;
   document.querySelector('canvas').parentNode.appendChild(infoPanel);
 
-  // Add event listener for camera angle slider
   document.getElementById('cameraAngleSlider').addEventListener('input', function() { 
     g_globalAngle = parseFloat(this.value); 
     document.getElementById('cameraAngleValue').textContent = this.value + '°';
   });
-
-  // Set clear color and clear canvas
+  
   gl.clearColor(0.0, 0.0, 0.0, 1.0);
   gl.clear(gl.COLOR_BUFFER_BIT);
   
@@ -572,19 +558,25 @@ function keydown(ev){
   if (ev.keyCode == 69) { // E key - rotate model right
     g_globalAngle += 5;
   }
-  if (ev.keyCode == 32) { // Space key - add block
-    addBlock();
+  if (ev.keyCode == 32) { // Space key - add block or collect gem
+    if (g_gameStarted) {
+      collectGem(); // Try to collect a gem first
+    } else {
+      addBlock(); // Otherwise add a block
+    }
     ev.preventDefault(); // Prevent page scrolling
   }
   if (ev.keyCode == 8) { // Backspace key - delete block
     deleteBlock();
     ev.preventDefault(); // Prevent browser back navigation
   }
+  if (ev.keyCode == 71) { // G key - start/restart game
+    initializeGame();
+    ev.preventDefault();
+  }
   renderScene();
 }
-
 function initTextures(gl) {
-  // Load sky texture (texture0)
   var skyImage = new Image();
   var skyTexture = gl.createTexture(); // Define texture object earlier
   if (!skyImage || !skyTexture) {
@@ -592,7 +584,6 @@ function initTextures(gl) {
     return false;
   }
 
-  // Load ground texture (texture1)
   var groundImage = new Image();
   var groundTexture = gl.createTexture();
   if (!groundImage || !groundTexture) {
@@ -600,7 +591,6 @@ function initTextures(gl) {
     return false;
   }
 
-  // Register sky texture handler
   skyImage.onload = function() {
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
     gl.activeTexture(gl.TEXTURE0);
@@ -611,7 +601,6 @@ function initTextures(gl) {
     console.log("Sky texture loaded (texture0 from sky.jpg)");
   };
 
-  // Register ground texture handler
   groundImage.onload = function() {
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
     gl.activeTexture(gl.TEXTURE1);
@@ -622,7 +611,6 @@ function initTextures(gl) {
     console.log("Ground texture loaded (texture1 from ground.jpg)");
   };
 
-  // Add error handling for texture loading
   skyImage.onerror = function() { 
     console.error("Failed to load sky.jpg"); 
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, skyTexture);
@@ -636,7 +624,6 @@ function initTextures(gl) {
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, fallbackData);
   };
 
-  // Start loading the images with correct paths
   skyImage.src = 'sky.jpg';
   groundImage.src = 'ground.jpg';
 
@@ -645,7 +632,6 @@ function initTextures(gl) {
 
 
 
-// Helper function to check if a value is a power of 2
 function isPowerOf2(value) {
   return (value & (value - 1)) === 0;
 }
@@ -752,7 +738,6 @@ function setupWebGL() {
     return false;
   }
   
-  // Enable depth testing
   gl.enable(gl.DEPTH_TEST);
   gl.clearColor(0.0, 0.0, 0.0, 1.0);
   
@@ -802,7 +787,6 @@ function connectVariablesToGLSL() {
     return false;
   }
 
-   // Get the storage location of u_Sampler
    u_Sampler0 = gl.getUniformLocation(gl.program, 'u_Sampler0');
    if (!u_Sampler0) {
      console.log('Failed to get the storage location of u_Sampler0');
@@ -821,7 +805,6 @@ function connectVariablesToGLSL() {
      return false;
    }
 
-   // Get the storage locations of view and projection matrices
    u_ViewMatrix = gl.getUniformLocation(gl.program, 'u_ViewMatrix');
    if (!u_ViewMatrix) {
      console.log('Failed to get the storage location of u_ViewMatrix');
@@ -845,7 +828,6 @@ function mouseDown(ev) {
     return;
   }
   
-  // Camera rotation is now the default
   g_isDraggingCamera = true;
   g_lastX = ev.clientX;
   g_lastY = ev.clientY;
@@ -861,19 +843,18 @@ function mouseMove(ev) {
   const dx = ev.clientX - g_lastX;
   const dy = ev.clientY - g_lastY;
   
-  // Camera rotation is the default behavior now - no angle limits
   if (dx !== 0) {
-    g_camera.pan(-dx * 0.2);  // Negative for natural camera movement
+  g_camera.pan(-dx * 0.2);  
   }
   
   if (dy !== 0) {
-    g_camera.tilt(-dy * 0.2);
+  g_camera.tilt(-dy * 0.2);
   }
   
   g_lastX = ev.clientX;
   g_lastY = ev.clientY;
   
-  renderScene(); // Update the scene immediately for smoother rotation
+  renderScene(); 
 }
 
 function addPoint(ev) {
@@ -921,31 +902,24 @@ function drawCube(matrix, color, textureNum) {
   cube.color = color;
   cube.matrix.set(matrix);
   
-  // Check if textureNum is passed as a parameter
   if (textureNum !== undefined) {
     cube.textureNum = textureNum;
   } 
-  // Check if matrix has a textureNum property
   else if (matrix.textureNum !== undefined) {
     cube.textureNum = matrix.textureNum;
   }
   
   if (g_useOptimizedRendering) {
-    // Use optimized rendering methods when enabled
     if (cube.textureNum >= 0) {
-      // If it has a texture (sky or ground), use renderFastUV
       cube.renderFastUV();
     } else {
-      // Otherwise use renderFast for solid colors
       cube.renderFast();
     }
   } else {
-    // Use original render method for safety until optimized methods are fixed
     cube.render();
   }
 }
 
-// Initialize camera
 var g_camera;
 
 // Function to render the entire scene
@@ -953,7 +927,6 @@ function renderScene() {
   // Clear canvas
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   
-  // Make sure GL uses the correct texture for each texture unit
   gl.activeTexture(gl.TEXTURE0);
   gl.activeTexture(gl.TEXTURE1);
   
@@ -987,10 +960,10 @@ function renderScene() {
 
   // Draw the floor with ground texture
   var floor = new Cube();
-  floor.color = [1.0, 1.0, 1.0, 1.0]; // White (will be multiplied by texture color)
-  floor.textureNum = 1; // Use the ground texture (texture1)
+  floor.color = [1.0, 1.0, 1.0, 1.0];   
+  floor.textureNum = 1;   
   floor.matrix.translate(0, -0.75, 0.0);
-  floor.matrix.scale(25, 0, 25); // Much larger ground
+  floor.matrix.scale(25, 0, 25); 
   floor.matrix.translate(-0.5, 0, -0.5);
   if (g_useOptimizedRendering) {
     floor.renderFastUV();
@@ -998,9 +971,19 @@ function renderScene() {
     floor.render();
   }
 
-  // Draw the map (walls)
   drawMap();
   
+  drawNatureScene();
+  
+  if (g_gameStarted) {
+    drawGems();
+    updateGameUI();
+  }
+  
+  if (g_wowFactorEnabled && g_giraffeWalking) {
+    drawWalkingGiraffe();
+  }
+  else if (!g_gameStarted || g_gameComplete) {
   // BODY - Start with the body as the root
   var bodyY = 0.0;
   var bodyScale = 1.0;
@@ -1192,7 +1175,7 @@ function renderScene() {
   
   var totalLeftCalfAngle = parseFloat(g_frontLeftCalfAngle);
   if (animationRunning) {
-    totalLeftCalfAngle += g_leftCalfAnimAngle; 
+    totalLeftCalfAngle += g_leftCalfAnimAngle;
   }
   leftCalfMatrix.rotate(totalLeftCalfAngle, 1, 0, 0); 
   
@@ -1207,7 +1190,7 @@ function renderScene() {
   
   var totalLeftFootAngle = parseFloat(g_frontLeftFootAngle);
   if (animationRunning) {
-    totalLeftFootAngle += g_leftFootAnimAngle; 
+    totalLeftFootAngle += g_leftFootAnimAngle;
   }
   leftFootMatrix.rotate(totalLeftFootAngle, 1, 0, 0); 
   
@@ -1267,7 +1250,7 @@ function renderScene() {
   
   var totalBackLeftLegAngle = parseFloat(g_backLeftLegAngle);
   if (animationRunning) {
-    totalBackLeftLegAngle += g_backLeftLegAnimAngle; 
+    totalBackLeftLegAngle += g_backLeftLegAnimAngle;
   }
   backLeftLegMatrix.rotate(totalBackLeftLegAngle, 1, 0, 0); 
   
@@ -1306,6 +1289,7 @@ function renderScene() {
 
 
   drawGiraffeSpots(modelMatrix);
+  }
 }
 
 function drawGiraffeSpots(baseMatrix) {
@@ -1409,7 +1393,6 @@ function updateAnimationAngles() {
   if (g_isPokeAnimating) {
     g_pokeAnimTime++;
     
-    // If we've reached the end of the animation, reset
     if (g_pokeAnimTime >= g_pokeAnimDuration) {
       g_isPokeAnimating = false;
       g_pokeAnimTime = 0;
@@ -1425,12 +1408,10 @@ function updateAnimationAngles() {
     g_rightCalfAnimAngle = Math.sin((g_time * speed) + 0.5) * 10; 
     g_rightFootAnimAngle = Math.sin((g_time * speed) + 1.0) * 5; 
     
-    // Front left leg animation 
-    g_leftLegAnimAngle = Math.sin((g_time * speed) + Math.PI) * 15; // Opposite phase
+    g_leftLegAnimAngle = Math.sin((g_time * speed) + Math.PI) * 15; 
     g_leftCalfAnimAngle = Math.sin((g_time * speed) + Math.PI + 0.5) * 10;
     g_leftFootAnimAngle = Math.sin((g_time * speed) + Math.PI + 1.0) * 5;
     
-    // Back right leg animation
     g_backRightLegAnimAngle = Math.sin((g_time * speed) + Math.PI) * 15;
     g_backRightCalfAnimAngle = Math.sin((g_time * speed) + Math.PI + 0.5) * 10;
     g_backRightFootAnimAngle = Math.sin((g_time * speed) + Math.PI + 1.0) * 5;
@@ -1456,12 +1437,17 @@ function updateFPSDisplay() {
 function tick() {
   updateAnimationAngles();
   
+  if (g_gameStarted) {
+    updateGems();
+  }
+  
+  updateNatureScene();
+  
   // Calculate FPS
   const now = performance.now();
   const delta = now - g_lastTime;
   g_lastTime = now;
   
-  // Update frame time counter
   g_frameTime += delta;
   g_frameCount++;
   
@@ -1476,3 +1462,781 @@ function tick() {
   renderScene();
   requestAnimationFrame(tick);
 }
+
+function initializeGame() {
+  g_gems = [];
+  g_gemsCollected = 0;
+  g_gameComplete = false;
+  g_gameStarted = true;
+  g_gameStartTime = performance.now();
+  g_gameTimer = 0;
+  
+  // Create gems at random positions around the map
+  for (let i = 0; i < g_totalGems; i++) {
+    let x = Math.floor(Math.random() * 60) - 30; 
+    let z = Math.floor(Math.random() * 60) - 30; 
+    
+    // Make sure we don't place gems inside walls
+    if (x >= -1 && x <= 1 && z >= -1 && z <= 1) {
+      x += 5; // Move away from center
+    }
+    
+    
+    let colors = [
+      [1.0, 0.2, 0.2, 1.0], // Red
+      [0.2, 1.0, 0.2, 1.0], // Green
+      [0.2, 0.2, 1.0, 1.0], // Blue
+      [1.0, 1.0, 0.2, 1.0], // Yellow
+      [1.0, 0.2, 1.0, 1.0]  // Magenta
+    ];
+    
+    g_gems.push({
+      x: x,
+      z: z,
+      y: 0.5, 
+      color: colors[i % colors.length],
+      collected: false,
+      rotationSpeed: 0.5 + Math.random() * 1.5, 
+      rotationAngle: 0,
+      bounceOffset: 0,
+      bounceSpeed: 0.02 + Math.random() * 0.03 
+    });
+  }
+  
+  showGameMessage("Find all 5 gems! Use WASD to move, Space to collect.", false);
+}
+
+// Function to update gem animation
+function updateGems() {
+  if (!g_gameStarted) return;
+  
+  if (!g_gameComplete) {
+    g_gameTimer = (performance.now() - g_gameStartTime) / 1000;
+  }
+  
+  for (let i = 0; i < g_gems.length; i++) {
+    if (!g_gems[i].collected) {
+      g_gems[i].rotationAngle += g_gems[i].rotationSpeed;
+      
+      g_gems[i].bounceOffset = Math.sin(g_time * g_gems[i].bounceSpeed) * 0.1;
+      
+      let playerX = g_camera.eye.elements[0];
+      let playerZ = g_camera.eye.elements[2];
+      
+      let dx = playerX - ((g_gems[i].x - 16) * 0.22);
+      let dz = playerZ - ((g_gems[i].z - 16) * 0.22);
+      let distance = Math.sqrt(dx * dx + dz * dz);
+      
+      g_gems[i].isNear = distance < 0.8;
+    }
+  }
+}
+
+// Function to draw gems
+function drawGems() {
+  if (!g_gameStarted) return;
+  
+  for (let i = 0; i < g_gems.length; i++) {
+    if (!g_gems[i].collected) {
+      let gem = g_gems[i];
+      
+      let gemMatrix = new Matrix4();
+      
+      gemMatrix.translate(
+        (gem.x - 16) * 0.22, 
+        gem.y + gem.bounceOffset, 
+        (gem.z - 16) * 0.22
+      );
+      
+      gemMatrix.rotate(gem.rotationAngle, 0, 1, 0);
+      
+      gemMatrix.scale(0.15, 0.25, 0.15);
+      
+      let gemCube = new Cube();
+      gemCube.textureNum = -2; 
+      
+      let gemColor = gem.color.slice();
+      if (gem.isNear) {
+        let pulse = Math.sin(g_time * 0.2) * 0.5 + 0.5;
+        gemColor = [
+          gemColor[0], 
+          gemColor[1], 
+          gemColor[2], 
+          gemColor[3] * (0.5 + pulse * 0.5) 
+        ];
+        
+        showGameMessage("Press SPACE to collect the gem!", false);
+      }
+      
+      gemCube.color = gemColor;
+      gemCube.matrix = gemMatrix;
+      
+      if (g_useOptimizedRendering) {
+        gemCube.renderFast();
+      } else {
+        gemCube.render();
+      }
+    }
+  }
+}
+
+function collectGem() {
+  if (!g_gameStarted || g_gameComplete) return;
+  
+  for (let i = 0; i < g_gems.length; i++) {
+    if (!g_gems[i].collected && g_gems[i].isNear) {
+      g_gems[i].collected = true;
+      g_gemsCollected++;
+      
+      showGameMessage(`Gem collected! ${g_gemsCollected}/${g_totalGems}`, false);
+      
+      if (g_gemsCollected >= g_totalGems) {
+        g_gameComplete = true;
+        let timeString = g_gameTimer.toFixed(1);
+        showGameMessage(`Congratulations! All gems collected in ${timeString} seconds!`, true);
+      }
+      
+      return;
+    }
+  }
+}
+
+function showGameMessage(message, isComplete) {
+  let messageElement = document.getElementById('game-message');
+  
+  if (!messageElement) {
+    messageElement = document.createElement('div');
+    messageElement.id = 'game-message';
+    messageElement.style.position = 'fixed';
+    messageElement.style.bottom = '20px';
+    messageElement.style.left = '50%';
+    messageElement.style.transform = 'translateX(-50%)';
+    messageElement.style.padding = '15px 25px';
+    messageElement.style.borderRadius = '8px';
+    messageElement.style.zIndex = '1000';
+    messageElement.style.fontWeight = 'bold';
+    messageElement.style.fontSize = '18px';
+    messageElement.style.textAlign = 'center';
+    messageElement.style.transition = 'opacity 0.5s ease-in-out';
+    document.body.appendChild(messageElement);
+  }
+  
+  if (isComplete) {
+    messageElement.style.backgroundColor = '#4CAF50'; 
+    messageElement.style.color = 'white';
+    messageElement.style.boxShadow = '0 4px 8px rgba(0,0,0,0.3)';
+  } else {
+    messageElement.style.backgroundColor = 'rgba(0,0,0,0.7)'; 
+    messageElement.style.color = 'white';
+  }
+  
+  messageElement.textContent = message;
+  messageElement.style.opacity = '1';
+  
+  if (!isComplete) {
+    setTimeout(() => {
+      messageElement.style.opacity = '0';
+    }, 4000);
+  }
+}
+
+
+function updateGameUI() {
+  if (!g_gameStarted) return;
+  
+  let gameUI = document.getElementById('game-ui');
+  
+  if (!gameUI) {
+    gameUI = document.createElement('div');
+    gameUI.id = 'game-ui';
+    gameUI.style.position = 'fixed';
+    gameUI.style.top = '20px';
+    gameUI.style.left = '20px';
+    gameUI.style.padding = '10px';
+    gameUI.style.backgroundColor = 'rgba(0,0,0,0.6)';
+    gameUI.style.color = 'white';
+    gameUI.style.borderRadius = '5px';
+    gameUI.style.fontWeight = 'bold';
+    gameUI.style.zIndex = '1000';
+    document.body.appendChild(gameUI);
+  }
+  
+  gameUI.innerHTML = `
+    <div>Gems: ${g_gemsCollected}/${g_totalGems}</div>
+    <div>Time: ${g_gameTimer.toFixed(1)}s</div>
+  `;
+}
+
+class Bird {
+  constructor(x, y, z) {
+    this.position = [x, y, z];
+    this.wingAngle = Math.random() * Math.PI * 2;
+    this.wingSpeed = 0.05 + Math.random() * 0.1;
+    this.flySpeed = 0.01 + Math.random() * 0.02;
+    this.direction = Math.random() * Math.PI * 2;
+    this.circleRadius = 1 + Math.random() * 3;
+    this.circleHeight = Math.random() * 0.5;
+    this.baseY = y;
+    this.color = [
+      0.4 + Math.random() * 0.2,
+      0.2 + Math.random() * 0.2,
+      0.1 + Math.random() * 0.2,
+      1.0
+    ];
+    this.scale = 0.15 + Math.random() * 0.1;
+  }
+
+  update() {
+    this.direction += this.flySpeed;
+    this.position[0] = Math.cos(this.direction) * this.circleRadius;
+    this.position[2] = Math.sin(this.direction) * this.circleRadius;
+    this.position[1] = this.baseY + Math.sin(this.direction * 3) * this.circleHeight;
+    
+    this.wingAngle += this.wingSpeed;
+    if (this.wingAngle > Math.PI * 2) this.wingAngle -= Math.PI * 2;
+  }
+
+  render() {
+    var birdMatrix = new Matrix4();
+    
+    birdMatrix.translate(this.position[0], this.position[1], this.position[2]);
+    
+    birdMatrix.rotate(-this.direction + Math.PI/2, 0, 1, 0);
+    
+    var bodyMatrix = new Matrix4(birdMatrix);
+    bodyMatrix.scale(this.scale * 0.5, this.scale * 0.5, this.scale);
+    drawCube(bodyMatrix, this.color, -2);
+    
+    var headMatrix = new Matrix4(birdMatrix);
+    headMatrix.translate(0, this.scale * 0.3, this.scale * 0.6);
+    headMatrix.scale(this.scale * 0.4, this.scale * 0.4, this.scale * 0.4);
+    drawCube(headMatrix, this.color, -2);
+    
+    var beakMatrix = new Matrix4(birdMatrix);
+    beakMatrix.translate(0, this.scale * 0.2, this.scale * 0.9);
+    beakMatrix.scale(this.scale * 0.1, this.scale * 0.1, this.scale * 0.2);
+    drawCube(beakMatrix, [1.0, 0.7, 0.0, 1.0], -2);
+    
+    var wingYOffset = Math.sin(this.wingAngle) * 0.2;
+    
+    var leftWingMatrix = new Matrix4(birdMatrix);
+    leftWingMatrix.translate(this.scale * 0.5, this.scale * 0.1 + wingYOffset, 0);
+    leftWingMatrix.rotate(Math.sin(this.wingAngle) * 30, 0, 0, 1);
+    leftWingMatrix.scale(this.scale * 0.8, this.scale * 0.1, this.scale * 0.5);
+    drawCube(leftWingMatrix, this.color, -2);
+    
+    var rightWingMatrix = new Matrix4(birdMatrix);
+    rightWingMatrix.translate(-this.scale * 0.5, this.scale * 0.1 + wingYOffset, 0);
+    rightWingMatrix.rotate(-Math.sin(this.wingAngle) * 30, 0, 0, 1);
+    rightWingMatrix.scale(this.scale * 0.8, this.scale * 0.1, this.scale * 0.5);
+    drawCube(rightWingMatrix, this.color, -2);
+    
+    var tailMatrix = new Matrix4(birdMatrix);
+    tailMatrix.translate(0, this.scale * 0.1, -this.scale * 0.6);
+    tailMatrix.scale(this.scale * 0.3, this.scale * 0.1, this.scale * 0.5);
+    drawCube(tailMatrix, this.color, -2);
+  }
+}
+
+  // Class for trees in the world
+class Tree {
+  constructor(x, z) {
+    this.position = [x, 0, z]; 
+    this.height = 0.8 + Math.random() * 1.0;
+    this.trunkColor = [0.45, 0.25, 0.05, 1.0];
+    this.leafColor = [
+      0.1 + Math.random() * 0.2,
+      0.4 + Math.random() * 0.3,
+      0.1 + Math.random() * 0.1,
+      1.0
+    ];
+    this.trunkWidth = 0.15 + Math.random() * 0.1;
+    this.leafSize = 0.4 + Math.random() * 0.3;
+    this.leafLayers = 2 + Math.floor(Math.random() * 2);
+    this.swayAngle = 0;
+    this.swaySpeed = 0.02 + Math.random() * 0.01;
+  }
+
+  update() {
+    this.swayAngle += this.swaySpeed;
+    if (this.swayAngle > Math.PI * 2) this.swayAngle -= Math.PI * 2;
+  }
+
+  render() {
+    var treeMatrix = new Matrix4();
+    
+    treeMatrix.translate(this.position[0], -0.75, this.position[2]);
+    
+    var trunkMatrix = new Matrix4(treeMatrix);
+    trunkMatrix.translate(0, this.height/2, 0);
+    trunkMatrix.scale(this.trunkWidth, this.height, this.trunkWidth);
+    drawCube(trunkMatrix, this.trunkColor, -2);
+    
+    for (var i = 0; i < this.leafLayers; i++) {
+      var leafMatrix = new Matrix4(treeMatrix);
+      var layerHeight = this.height + (i * 0.2);
+      var sway = Math.sin(this.swayAngle) * 0.05 * (i + 1);
+      
+      leafMatrix.translate(sway, layerHeight, 0);
+      
+      leafMatrix.rotate(sway * 5, 0, 0, 1);
+      
+      var leafScale = this.leafSize * (1 - i * 0.2);
+      leafMatrix.scale(leafScale, leafScale * 0.8, leafScale);
+      
+      drawCube(leafMatrix, this.leafColor, -2);
+    }
+  }
+}
+
+class Raindrop {
+  constructor() {
+    this.reset();
+    this.position[1] = 3 + Math.random() * 4;
+  }
+  
+  reset() {
+    this.position = [
+      Math.random() * 20 - 10,    
+      7,                          
+      Math.random() * 20 - 10     
+    ];
+    this.speed = 0.08 + Math.random() * 0.05;
+    this.length = 0.2 + Math.random() * 0.1;
+    this.alpha = 0.5 + Math.random() * 0.5;
+  }
+  
+  update() {
+    this.position[1] -= this.speed;
+    
+    if (this.position[1] < -0.7) {
+      this.reset();
+    }
+  }
+  
+  render() {
+    var dropMatrix = new Matrix4();
+    dropMatrix.translate(this.position[0], this.position[1], this.position[2]);
+    dropMatrix.rotate(75, 1, 0, 0); // Slight angle for rain
+    
+    dropMatrix.scale(0.01, this.length, 0.01);
+    
+    var raindropColor = [0.7, 0.8, 1.0, this.alpha];
+    drawCube(dropMatrix, raindropColor, -2);
+  }
+}
+
+function initializeNatureScene() {
+  g_trees = [];
+  
+  initializeMap();
+  
+  for (var i = 0; i < g_numTrees; i++) {
+    var mapX = Math.floor(Math.random() * 24) + 4;
+    var mapZ = Math.floor(Math.random() * 24) + 4;
+    
+    var treeX = (mapX - 16) * 0.22;
+    var treeZ = (mapZ - 16) * 0.22;
+    
+    if (Math.abs(treeX) < 1 && Math.abs(treeZ) < 1) {
+      if (treeX < 0) treeX -= 1.5;
+      else treeX += 1.5;
+    }
+    
+    var tree = new Tree(treeX, treeZ);
+    g_trees.push(tree);
+  }
+  
+  g_birds = [];
+  for (var i = 0; i < g_numBirds; i++) {
+    var birdX = Math.random() * 10 - 5;
+    var birdY = 0.5 + Math.random() * 2.5;
+    var birdZ = Math.random() * 10 - 5;
+    g_birds.push(new Bird(birdX, birdY, birdZ));
+  }
+  
+  g_raindrops = [];
+  for (var i = 0; i < g_numRaindrops; i++) {
+    g_raindrops.push(new Raindrop());
+  }
+  
+  g_giraffePath = [];
+  var numPathPoints = 10;
+  for (var i = 0; i < numPathPoints; i++) {
+    var angle = (i / numPathPoints) * Math.PI * 2;
+    var radius = 3 + Math.random();
+    g_giraffePath.push({
+      x: Math.cos(angle) * radius,
+      z: Math.sin(angle) * radius
+    });
+  }
+}
+
+function updateNatureScene() {
+  if (!g_wowFactorEnabled) return;
+  
+  if (g_showBirds) {
+    for (var i = 0; i < g_birds.length; i++) {
+      g_birds[i].update();
+    }
+  }
+  
+  if (g_showTrees) {
+    for (var i = 0; i < g_trees.length; i++) {
+      g_trees[i].update();
+    }
+  }
+  
+  if (g_showRain) {
+    for (var i = 0; i < g_raindrops.length; i++) {
+      g_raindrops[i].update();
+    }
+  }
+  
+  if (g_giraffeWalking && g_giraffePath.length > 0) {
+    var target = g_giraffePath[g_giraffePathIndex];
+    
+    var dx = target.x - g_giraffePosition[0];
+    var dz = target.z - g_giraffePosition[2];
+    var distance = Math.sqrt(dx*dx + dz*dz);
+    
+    g_giraffeDirection = Math.atan2(dz, dx);
+    
+    if (distance > 0.1) {
+      g_giraffePosition[0] += (dx / distance) * g_giraffeWalkSpeed;
+      g_giraffePosition[2] += (dz / distance) * g_giraffeWalkSpeed;
+    } else {
+      g_giraffePathIndex = (g_giraffePathIndex + 1) % g_giraffePath.length;
+    }
+  }
+}
+
+function drawNatureScene() {
+  if (!g_wowFactorEnabled) return;
+  
+  // Draw trees
+  if (g_showTrees) {
+    for (var i = 0; i < g_trees.length; i++) {
+      g_trees[i].render();
+    }
+  }
+  
+  if (g_showBirds) {
+    for (var i = 0; i < g_birds.length; i++) {
+      g_birds[i].render();
+    }
+  }
+  
+  if (g_showRain) {
+    for (var i = 0; i < g_raindrops.length; i++) {
+      g_raindrops[i].render();
+    }
+  }
+}
+function drawWalkingGiraffe() {
+  if (!g_giraffeWalking) return;
+  
+  var giraffeMatrix = new Matrix4();
+  
+  giraffeMatrix.translate(g_giraffePosition[0], g_giraffePosition[1], g_giraffePosition[2]);
+  
+  giraffeMatrix.rotate(g_giraffeDirection * 180 / Math.PI, 0, 1, 0);
+  
+  var bodyY = 0.0;
+  var bodyScale = 1.0;
+  
+  if (animationRunning) {
+    bodyY = g_bodyAnimOffset; 
+  }
+  
+  giraffeMatrix.translate(0.0, bodyY + 0.2, 0.0);
+  giraffeMatrix.scale(bodyScale, bodyScale, bodyScale); 
+  var bodyMatrix = new Matrix4(giraffeMatrix); 
+  bodyMatrix.textureNum = -2;
+  bodyMatrix.scale(0.25, 0.15, 0.4);       
+  drawCube(bodyMatrix, [1.0, 0.8, 0.0, 1.0]);
+  
+  var backBodyMatrix = new Matrix4(giraffeMatrix);
+  backBodyMatrix.translate(0.0, 0.0, -0.2);  
+  backBodyMatrix.scale(0.25, 0.15, 0.22);    
+  drawCube(backBodyMatrix, [1.0, 0.8, 0.0, 1.0]); 
+
+  var neckMatrix = new Matrix4(giraffeMatrix);
+  neckMatrix.translate(0.0, 0.15, 0.1);      
+  
+  var neckAngle = -20; 
+  if (animationRunning) {
+    neckAngle += g_neckAnimAngle; 
+  }
+  
+  neckMatrix.rotate(neckAngle, 1, 0, 0);      
+  
+  var neckTransformMatrix = new Matrix4(neckMatrix); 
+  neckMatrix.scale(0.08, 0.4, 0.08);         
+  drawCube(neckMatrix, [1.0, 0.8, 0.0, 1.0]); 
+
+  var headMatrix = new Matrix4(neckTransformMatrix);
+  headMatrix.textureNum = -2;
+  headMatrix.translate(0.0, 0.4, 0.0);         
+  
+  if (animationRunning) {
+    headMatrix.rotate(g_headAnimAngle, 1, 0, 0); 
+  }
+  
+  var headTransformMatrix = new Matrix4(headMatrix); 
+  headMatrix.scale(0.12, 0.12, 0.2);          
+  drawCube(headMatrix, [1.0, 0.8, 0.0, 1.0]);  
+  
+  // Eyes and face details
+  var bigEyeMatrix = new Matrix4(headTransformMatrix);
+  bigEyeMatrix.translate(0.08, 0.0, 0.12);
+  bigEyeMatrix.scale(0.06, 0.06, 0.04);
+  drawCube(bigEyeMatrix, [1.0, 1.0, 1.0, 1.0]);
+  
+  var bigPupilMatrix = new Matrix4(headTransformMatrix);
+  bigPupilMatrix.translate(0.08, 0.0, 0.15);
+  bigPupilMatrix.scale(0.03, 0.03, 0.02);
+  drawCube(bigPupilMatrix, [0.0, 0.0, 0.0, 1.0]);
+  
+  var leftEyeMatrix = new Matrix4(headTransformMatrix);
+  leftEyeMatrix.translate(-0.05, 0.0, 0.1);
+  leftEyeMatrix.scale(0.03, 0.03, 0.03);
+  drawCube(leftEyeMatrix, [1.0, 1.0, 1.0, 1.0]);
+  
+  var leftPupilMatrix = new Matrix4(headTransformMatrix);
+  leftPupilMatrix.translate(-0.05, 0.0, 0.12);
+  leftPupilMatrix.scale(0.015, 0.015, 0.01);
+  drawCube(leftPupilMatrix, [0.0, 0.0, 0.0, 1.0]);
+  
+  // Tail
+  var tailMatrix = new Matrix4(giraffeMatrix);
+  tailMatrix.translate(0.0, 0.05, -0.32);      
+  var tailAngle = -60; 
+  if (animationRunning) {
+    tailMatrix.rotate(g_tailAnimAngle, 0, 1, 0); 
+    tailAngle += Math.abs(g_tailAnimAngle) * 0.2; 
+  }
+  
+  tailMatrix.rotate(tailAngle, 1, 0, 0);
+  
+  var tailTransformMatrix = new Matrix4(tailMatrix); 
+  tailMatrix.scale(0.03, 0.6, 0.03);          
+  drawCube(tailMatrix, [0.8, 0.6, 0.0, 1.0]);  
+  
+  var tailTipMatrix = new Matrix4(tailTransformMatrix);
+  tailTipMatrix.translate(0.0, -0.6, 0.0);     
+  
+  if (animationRunning) {
+    tailTipMatrix.rotate(g_tailAnimAngle * 0.5, 0, 1, 0);
+  }
+  
+  tailTipMatrix.scale(0.04, 0.15, 0.04);        
+  drawCube(tailTipMatrix, [0.4, 0.3, 0.0, 1.0]); 
+
+  // LEGS
+  var legsBaseMatrix = new Matrix4(giraffeMatrix);
+  var backLegsBaseMatrix = new Matrix4(giraffeMatrix);
+  backLegsBaseMatrix.translate(0.0, 0.0, -0.2); 
+
+  var frontRightLegMatrix = new Matrix4(legsBaseMatrix);
+  frontRightLegMatrix.translate(0.1, -0.15, 0.18);    
+  
+  var totalRightLegAngle = parseFloat(g_frontRightLegAngle);
+  
+  if (animationRunning) {
+    totalRightLegAngle += g_rightLegAnimAngle;
+  }
+  
+  frontRightLegMatrix.rotate(totalRightLegAngle, 1, 0, 0);
+  
+  var thighTransform = new Matrix4(frontRightLegMatrix); 
+  
+  frontRightLegMatrix.scale(0.06, 0.4, 0.06);       
+  drawCube(frontRightLegMatrix, [1.0, 0.8, 0.0, 1.0]); 
+
+  // FRONT RIGHT LOWER LEG - Bottom half - Calf
+  var calfMatrix = new Matrix4(thighTransform);
+  calfMatrix.translate(0.0, -0.4 + 0.05, 0.0);    
+  
+  var totalCalfAngle = parseFloat(g_frontRightCalfAngle);
+  if (animationRunning) {
+    totalCalfAngle += g_rightCalfAnimAngle;
+  }
+  
+  calfMatrix.rotate(totalCalfAngle, 1, 0, 0); 
+  
+  var calfTransform = new Matrix4(calfMatrix);
+  
+  calfMatrix.scale(0.06, 0.4, 0.06);       
+  drawCube(calfMatrix, [1.0, 0.8, 0.0, 1.0]); 
+
+  // FRONT RIGHT FOOT (HOOF) - third level in hierarchy
+  var footMatrix = new Matrix4(calfTransform);
+  footMatrix.translate(0.0, -0.4 + 0.05, 0.0);        
+  
+  var totalFootAngle = parseFloat(g_frontRightFootAngle);
+  if (animationRunning) {
+    totalFootAngle += g_rightFootAnimAngle;
+  }
+  
+  footMatrix.rotate(totalFootAngle, 1, 0, 0);
+  footMatrix.textureNum = -2; // Set to -2 for solid color instead of 0
+  
+  footMatrix.scale(0.06, 0.05, 0.07);          
+  drawCube(footMatrix, [1.0, 0.8, 0.0, 1.0]);   
+
+  // FRONT LEFT LEG - Top half (yellow) - Thigh
+  var frontLeftLegMatrix = new Matrix4(legsBaseMatrix);
+  frontLeftLegMatrix.translate(-0.1, -0.15, 0.18);  
+  
+  var totalLeftLegAngle = parseFloat(g_frontLeftLegAngle);
+  if (animationRunning) {
+    totalLeftLegAngle += g_leftLegAnimAngle;
+  }
+  frontLeftLegMatrix.rotate(totalLeftLegAngle, 1, 0, 0); 
+  
+  var leftThighTransform = new Matrix4(frontLeftLegMatrix);
+  
+  frontLeftLegMatrix.scale(0.06, 0.4, 0.06);       
+  drawCube(frontLeftLegMatrix, [1.0, 0.8, 0.0, 1.0]); 
+
+  // FRONT LEFT LOWER LEG - Bottom half - Calf
+  var leftCalfMatrix = new Matrix4(leftThighTransform);
+  leftCalfMatrix.translate(0.0, -0.4 + 0.05, 0.0);      
+  
+  var totalLeftCalfAngle = parseFloat(g_frontLeftCalfAngle);
+  if (animationRunning) {
+    totalLeftCalfAngle += g_leftCalfAnimAngle;
+  }
+  leftCalfMatrix.rotate(totalLeftCalfAngle, 1, 0, 0); 
+  
+  var leftCalfTransform = new Matrix4(leftCalfMatrix);
+  
+  leftCalfMatrix.scale(0.06, 0.4, 0.06);        
+  drawCube(leftCalfMatrix, [1.0, 0.8, 0.0, 1.0]); 
+
+  // FRONT LEFT FOOT (HOOF) - third level in hierarchy
+  var leftFootMatrix = new Matrix4(leftCalfTransform);
+  leftFootMatrix.translate(0.0, -0.4 + 0.05, 0.0);        
+  
+  var totalLeftFootAngle = parseFloat(g_frontLeftFootAngle);
+  if (animationRunning) {
+    totalLeftFootAngle += g_leftFootAnimAngle;
+  }
+  leftFootMatrix.rotate(totalLeftFootAngle, 1, 0, 0); 
+  
+  leftFootMatrix.scale(0.06, 0.05, 0.07);           
+  drawCube(leftFootMatrix, [1.0, 0.8, 0.0, 1.0]);   
+
+
+
+  // BACK RIGHT LEG - Top half (yellow) - Thigh
+  var backRightLegMatrix = new Matrix4(backLegsBaseMatrix);
+  backRightLegMatrix.translate(0.1, -0.15, -0.1);    
+  
+  var totalBackRightLegAngle = parseFloat(g_backRightLegAngle);
+  if (animationRunning) {
+    totalBackRightLegAngle += g_backRightLegAnimAngle;
+  }
+  backRightLegMatrix.rotate(totalBackRightLegAngle, 1, 0, 0); 
+  
+  var backRightThighTransform = new Matrix4(backRightLegMatrix);
+  
+  backRightLegMatrix.scale(0.06, 0.4, 0.06);        
+  drawCube(backRightLegMatrix, [1.0, 0.8, 0.0, 1.0]); 
+
+  // BACK RIGHT LOWER LEG - Bottom half - Calf
+  var backRightCalfMatrix = new Matrix4(backRightThighTransform);
+  backRightCalfMatrix.translate(0.0, -0.4 + 0.05, 0.0);    
+  
+  var totalBackRightCalfAngle = parseFloat(g_backRightCalfAngle);
+  if (animationRunning) {
+    totalBackRightCalfAngle += g_backRightCalfAnimAngle;
+  }
+  backRightCalfMatrix.rotate(totalBackRightCalfAngle, 1, 0, 0);
+  
+  var backRightCalfTransform = new Matrix4(backRightCalfMatrix);
+  
+  backRightCalfMatrix.scale(0.06, 0.4, 0.06);      
+  drawCube(backRightCalfMatrix, [1.0, 0.8, 0.0, 1.0]); 
+
+  // BACK RIGHT FOOT (HOOF) - third level in hierarchy
+  var backRightFootMatrix = new Matrix4(backRightCalfTransform);
+  backRightFootMatrix.translate(0.0, -0.4 + 0.05, 0.0);     
+  
+  var totalBackRightFootAngle = parseFloat(g_backRightFootAngle);
+  if (animationRunning) {
+    totalBackRightFootAngle += g_backRightFootAnimAngle; 
+  }
+  backRightFootMatrix.rotate(totalBackRightFootAngle, 1, 0, 0); 
+  
+  backRightFootMatrix.scale(0.06, 0.05, 0.07);      
+  drawCube(backRightFootMatrix, [1.0, 0.8, 0.0, 1.0]); 
+
+
+
+  // BACK LEFT LEG - Top half (yellow) - Thigh
+  var backLeftLegMatrix = new Matrix4(backLegsBaseMatrix);
+  backLeftLegMatrix.translate(-0.1, -0.15, -0.1);   
+  
+  var totalBackLeftLegAngle = parseFloat(g_backLeftLegAngle);
+  if (animationRunning) {
+    totalBackLeftLegAngle += g_backLeftLegAnimAngle;
+  }
+  backLeftLegMatrix.rotate(totalBackLeftLegAngle, 1, 0, 0); 
+  
+  var backLeftThighTransform = new Matrix4(backLeftLegMatrix);
+  
+  backLeftLegMatrix.scale(0.06, 0.4, 0.06);         
+  drawCube(backLeftLegMatrix, [1.0, 0.8, 0.0, 1.0]); 
+
+  // BACK LEFT LOWER LEG - Bottom half - Calf
+  var backLeftCalfMatrix = new Matrix4(backLeftThighTransform);
+  backLeftCalfMatrix.translate(0.0, -0.4 + 0.05, 0.0);        
+  
+  var totalBackLeftCalfAngle = parseFloat(g_backLeftCalfAngle);
+  if (animationRunning) {
+    totalBackLeftCalfAngle += g_backLeftCalfAnimAngle;
+  }
+  backLeftCalfMatrix.rotate(totalBackLeftCalfAngle, 1, 0, 0); 
+  
+  var backLeftCalfTransform = new Matrix4(backLeftCalfMatrix);
+  
+  backLeftCalfMatrix.scale(0.06, 0.4, 0.06);       
+  drawCube(backLeftCalfMatrix, [1.0, 0.8, 0.0, 1.0]); 
+
+  // BACK LEFT FOOT (HOOF) - third level in hierarchy
+  var backLeftFootMatrix = new Matrix4(backLeftCalfTransform);
+  backLeftFootMatrix.translate(0.0, -0.4 + 0.05, 0.0);         
+  
+  var totalBackLeftFootAngle = parseFloat(g_backLeftFootAngle);
+  if (animationRunning) {
+    totalBackLeftFootAngle += g_backLeftFootAnimAngle; 
+  }
+  backLeftFootMatrix.rotate(totalBackLeftFootAngle, 1, 0, 0); 
+  
+  backLeftFootMatrix.scale(0.06, 0.05, 0.07);       
+  drawCube(backLeftFootMatrix, [1.0, 0.8, 0.0, 1.0]); 
+
+  // Draw giraffe spots
+  drawGiraffeSpots(giraffeMatrix);
+}
+
+// Toggle all wow factor features
+function toggleWowFactor() {
+  g_wowFactorEnabled = !g_wowFactorEnabled;
+  
+  if (g_wowFactorEnabled) {
+    g_showBirds = true;
+    g_showTrees = true;
+    g_giraffeWalking = true;
+    g_showRain = true;
+  } else {
+    g_showBirds = false;
+    g_showTrees = false;
+    g_giraffeWalking = false;
+    g_showRain = false;
+  }
+}
+
+
