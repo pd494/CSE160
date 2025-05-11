@@ -164,8 +164,7 @@ var g_showRain = false;
 var g_raindrops = [];              
 var g_numRaindrops = 200;          
 var g_wowFactorEnabled = false;    
-var g_wallsVisible = true; // Global variable to track wall visibility
-
+var g_wallsVisible = true; 
 function worldToMapCoord(x, z) {
   var mapX = Math.round(x / 0.22 + 16);
   var mapZ = Math.round(z / 0.22 + 16);
@@ -179,13 +178,11 @@ function getBlockInFrontOfCamera() {
   direction.sub(g_camera.eye);
   direction.normalize();
   
-  // Check multiple points along the ray at different distances
   for (var distance = 1.0; distance <= 5.0; distance += 0.2) {
     var targetX = g_camera.eye.elements[0] + direction.elements[0] * distance;
     var targetY = g_camera.eye.elements[1] + direction.elements[1] * distance;
     var targetZ = g_camera.eye.elements[2] + direction.elements[2] * distance;
     
-    // Check a larger radius around the ray for blocks
     for (var offsetX = -0.5; offsetX <= 0.5; offsetX += 0.5) {
       for (var offsetZ = -0.5; offsetZ <= 0.5; offsetZ += 0.5) {
         var checkX = targetX + offsetX;
@@ -198,9 +195,7 @@ function getBlockInFrontOfCamera() {
           
           extendMapIfNeeded(mapCoord.x, mapCoord.z);
           
-          // More generous height check
           if (g_map[mapCoord.x][mapCoord.z].height > 0) {
-            // Check if we're looking at any part of the block column
             var blockTop = g_map[mapCoord.x][mapCoord.z].height - 0.75;
             if (Math.abs(targetY - blockTop) < 1.5) {
               return mapCoord;
@@ -220,12 +215,10 @@ function addBlock() {
     resetGame();
   }
   
-  // Ensure walls are visible when adding blocks
   g_wallsVisible = true;
   
   var blockCoord = getBlockInFrontOfCamera();
   
-  // If no block is targeted, use the camera direction to place a block
   if (!blockCoord) {
     var direction = new Vector3();
     direction.set(g_camera.at);
@@ -258,12 +251,10 @@ function addBlock() {
 
 //  delete a block in front of the camera
 function deleteBlock() {
-  // Make sure we exit game mode if trying to delete blocks
   if (g_gameStarted) {
     resetGame();
   }
   
-  // Ensure walls are visible when deleting blocks
   g_wallsVisible = true;
   
   var blockCoord = getBlockInFrontOfCamera();
@@ -335,18 +326,15 @@ function initializeMap() {
     for (var j = 0; j < 32; j++) {
       g_map[i][j] = { height: 0 };
       
-      // Create outer walls
       if (i === 0 || i === 31 || j === 0 || j === 31) {
         // Front and back walls (Z = 0 or 31) are always height 1
         if (j === 0 || j === 31) {
           g_map[i][j] = { height: 1 };
         }
-        // Side walls (X = 0 or 31) can have varying heights
         else if (i === 0 || i === 31) {
           g_map[i][j] = { height: 1 };
-          // Add some taller sections randomly
           if (Math.random() < 0.4) {  // 40% chance for taller walls
-            var extraHeight = Math.floor(Math.random() * 3) + 1;  // Random height 1-3 extra blocks
+            var extraHeight = Math.floor(Math.random() * 3) + 1;  
             g_map[i][j].height += extraHeight;
           }
         }
@@ -354,7 +342,6 @@ function initializeMap() {
     }
   }
   
-  // Add some random taller sections only to side walls
   const tallSections = [
     {x: 0, z: 10, height: 4},
     {x: 0, z: 20, height: 3},
@@ -385,13 +372,10 @@ function buildWallsFromMap() {
           
           // Create dirt/earth colored blocks
           if (y === 0) {
-            // Darker brown for base
             wall.color = [0.45, 0.29, 0.07, 1.0];
           } else if (y === g_map[x][z].height - 1) {
-            // Lighter brown for top
             wall.color = [0.55, 0.35, 0.11, 1.0];
           } else {
-            // Random variation of brown for middle blocks
             var variation = (Math.random() * 0.1) - 0.05;
             wall.color = [0.5 + variation, 0.32 + variation, 0.09 + variation, 1.0];
           }
@@ -409,7 +393,6 @@ function buildWallsFromMap() {
 }
 
 function drawMap() {
-  // Only draw walls if they're visible
   if (g_wallsVisible) {
     for (var i = 0; i < g_walls.length; i++) {
       var wall = g_walls[i];
@@ -421,7 +404,6 @@ function drawMap() {
     }
   }
   
-  // Always draw the targeted block highlight when not in game mode
   if (!g_gameStarted) {
     drawTargetedBlockHighlight();
   }
@@ -490,16 +472,13 @@ function main() {
   // Initialize camera
   g_camera = new Camera();
   
-  // Position the camera far back for a complete overview
-  g_camera.eye = new Vector3([0, 1.5, 6.5]);   // Much higher and further back
-  g_camera.at = new Vector3([0, 0, 0]);        // Still looking at center
-  g_camera.up = new Vector3([0, 1, 0]);        // Up direction
+  g_camera.eye = new Vector3([0, 1.5, 6.5]);   
+  g_camera.at = new Vector3([0, 0, 0]);        
+  g_camera.up = new Vector3([0, 1, 0]);        
   
-  // Update the camera matrices
   g_camera.updateViewMatrix();
   g_camera.updateProjectionMatrix();
 
-  // Get the FPS counter element
   g_fpsElement = document.getElementById('fps-counter');
   updateFPSDisplay();
 
@@ -661,30 +640,29 @@ function keydown(ev){
     g_globalAngle += 5;
   }
   if (ev.keyCode == 32) { // Space key - add block or collect gem
-    ev.preventDefault(); // Prevent scrolling
+    ev.preventDefault(); 
     if (g_gameStarted) {
-      collectGem(); // Try to collect a gem first
+      collectGem(); 
     } else {
-      addBlock(); // Otherwise add a block
+      addBlock(); 
     }
   }
   if (ev.keyCode == 8) { // Backspace key - delete block
-    ev.preventDefault(); // Prevent browser back navigation
+    ev.preventDefault(); 
     deleteBlock();
   }
   if (ev.keyCode == 71) { // G key - start/restart game
     ev.preventDefault();
     if (g_gameStarted) {
-      resetGame(); // Reset game if already started
+      resetGame(); 
     } else {
-      initializeGame(); // Otherwise start new game
+      initializeGame(); 
     }
   }
-  if (ev.keyCode == 27) { // Escape key - reset game
+  if (ev.keyCode == 27) { //  reset game
     ev.preventDefault();
     resetGame();
   }
-  // V key - toggle wall visibility
   if (ev.keyCode == 86) {  
     ev.preventDefault();
     g_wallsVisible = !g_wallsVisible;
@@ -694,7 +672,7 @@ function keydown(ev){
 }
 function initTextures(gl) {
   var skyImage = new Image();
-  var skyTexture = gl.createTexture(); // Define texture object earlier
+  var skyTexture = gl.createTexture(); 
   if (!skyImage || !skyTexture) {
     console.log('Failed to create sky image or texture object');
     return false;
@@ -1055,17 +1033,15 @@ function renderScene() {
   globalRotMat.rotate(g_globalAngle * 4, 0, 1, 0); 
   gl.uniformMatrix4fv(u_GlobalRotateMatrix, false, globalRotMat.elements);
   
-  var modelMatrix = new Matrix4();  // The model matrix for the main body
+  var modelMatrix = new Matrix4();  
   
-  // Update and use camera's view and projection matrices
   g_camera.updateProjectionMatrix(canvas.width / canvas.height);
   gl.uniformMatrix4fv(u_ProjectionMatrix, false, g_camera.projectionMatrix.elements);
   gl.uniformMatrix4fv(u_ViewMatrix, false, g_camera.viewMatrix.elements);
 
-  // Draw the sky
   var sky = new Cube();
-  sky.color = [1.0, 1.0, 1.0, 1.0]; // White color to not affect texture
-  sky.textureNum = 0;  // Use sky texture
+  sky.color = [1.0, 1.0, 1.0, 1.0];
+  sky.textureNum = 0;  
   sky.matrix.scale(50, 50, 50);
   sky.matrix.translate(-0.5, -0.5, -0.5);
   if (g_useOptimizedRendering) {
@@ -1074,7 +1050,6 @@ function renderScene() {
     sky.render();
   }
 
-  // Draw the floor with ground texture
   var floor = new Cube();
   floor.color = [1.0, 1.0, 1.0, 1.0];   
   floor.textureNum = 1;   
@@ -1624,7 +1599,6 @@ function initializeGame() {
   showGameMessage("Find all 5 gems! Use WASD to move, Space to collect.", false);
 }
 
-// Function to update gem animation
 function updateGems() {
   if (!g_gameStarted) return;
   
@@ -1650,7 +1624,6 @@ function updateGems() {
   }
 }
 
-// Function to draw gems
 function drawGems() {
   if (!g_gameStarted) return;
   
@@ -1710,7 +1683,7 @@ function collectGem() {
       
       if (g_gemsCollected >= g_totalGems) {
         g_gameComplete = true;
-        g_wallsVisible = true; // Show walls again when game is complete
+        g_wallsVisible = true; 
         let timeString = g_gameTimer.toFixed(1);
         showGameMessage(`Congratulations! All gems collected in ${timeString} seconds!`, true);
       }
