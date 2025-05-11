@@ -178,18 +178,57 @@ function getBlockInFrontOfCamera() {
   direction.sub(g_camera.eye);
   direction.normalize();
   
-  var distance = 3.0;
-  var targetX = g_camera.eye.elements[0] + direction.elements[0] * distance;
-  var targetY = g_camera.eye.elements[1] + direction.elements[1] * distance;
-  var targetZ = g_camera.eye.elements[2] + direction.elements[2] * distance;
+  // Check multiple points along the ray at different distances
+  for (var distance = 1.0; distance <= 5.0; distance += 0.2) {
+    var targetX = g_camera.eye.elements[0] + direction.elements[0] * distance;
+    var targetY = g_camera.eye.elements[1] + direction.elements[1] * distance;
+    var targetZ = g_camera.eye.elements[2] + direction.elements[2] * distance;
+    
+    // Check a larger radius around the ray for blocks
+    for (var offsetX = -0.5; offsetX <= 0.5; offsetX += 0.5) {
+      for (var offsetZ = -0.5; offsetZ <= 0.5; offsetZ += 0.5) {
+        var checkX = targetX + offsetX;
+        var checkZ = targetZ + offsetZ;
+        
+        var mapCoord = worldToMapCoord(checkX, checkZ);
+        
+        if (mapCoord.x >= 0 && mapCoord.x < g_map.length && 
+            mapCoord.z >= 0 && mapCoord.z < g_map[mapCoord.x].length) {
+          
+          extendMapIfNeeded(mapCoord.x, mapCoord.z);
+          
+          // More generous height check
+          if (g_map[mapCoord.x][mapCoord.z].height > 0) {
+            // Check if we're looking at any part of the block column
+            var blockTop = g_map[mapCoord.x][mapCoord.z].height - 0.75;
+            if (Math.abs(targetY - blockTop) < 1.5) {
+              return mapCoord;
+            }
+          }
+        }
+      }
+    }
+  }
   
-  var mapCoord = worldToMapCoord(targetX, targetZ);
-  
-  return mapCoord;
+  return null;
 }
 
 function addBlock() {
   var blockCoord = getBlockInFrontOfCamera();
+  
+  // If no block is targeted, use the camera direction to place a block
+  if (!blockCoord) {
+    var direction = new Vector3();
+    direction.set(g_camera.at);
+    direction.sub(g_camera.eye);
+    direction.normalize();
+    
+    var distance = 3.0;
+    var targetX = g_camera.eye.elements[0] + direction.elements[0] * distance;
+    var targetZ = g_camera.eye.elements[2] + direction.elements[2] * distance;
+    
+    blockCoord = worldToMapCoord(targetX, targetZ);
+  }
   
   if (blockCoord.x >= -100 && blockCoord.x < 100 && blockCoord.z >= -100 && blockCoord.z < 100) {
     extendMapIfNeeded(blockCoord.x, blockCoord.z);
@@ -198,13 +237,10 @@ function addBlock() {
     
     if (currentHeight < 10) {
       g_map[blockCoord.x][blockCoord.z].height = currentHeight + 1;
-      
       buildWallsFromMap();
       showStatusMessage(`Added block at (${blockCoord.x}, ${blockCoord.z})`);
-      console.log(`Added block at (${blockCoord.x}, ${blockCoord.z}), new height: ${currentHeight + 1}`);
     } else {
       showStatusMessage(`Maximum height reached at (${blockCoord.x}, ${blockCoord.z})`, true);
-      console.log(`Maximum height reached at (${blockCoord.x}, ${blockCoord.z})`);
     }
   } else {
     showStatusMessage(`Cannot build beyond the world limits`, true);
@@ -215,23 +251,20 @@ function addBlock() {
 function deleteBlock() {
   var blockCoord = getBlockInFrontOfCamera();
   
-  if (blockCoord.x >= -100 && blockCoord.x < 100 && blockCoord.z >= -100 && blockCoord.z < 100) {
-    extendMapIfNeeded(blockCoord.x, blockCoord.z);
-    
-    var currentHeight = g_map[blockCoord.x][blockCoord.z].height;
-    
-    if (currentHeight > 0) {
-      g_map[blockCoord.x][blockCoord.z].height = currentHeight - 1;
-      
-      buildWallsFromMap();
-      showStatusMessage(`Removed block at (${blockCoord.x}, ${blockCoord.z})`);
-      console.log(`Removed block at (${blockCoord.x}, ${blockCoord.z}), new height: ${currentHeight - 1}`);
-    } else {
-      showStatusMessage(`No blocks to delete at (${blockCoord.x}, ${blockCoord.z})`, true);
-      console.log(`No blocks to delete at (${blockCoord.x}, ${blockCoord.z})`);
-    }
+  if (!blockCoord) {
+    showStatusMessage('No block in range to delete', true);
+    return;
+  }
+  
+  extendMapIfNeeded(blockCoord.x, blockCoord.z);
+  var currentHeight = g_map[blockCoord.x][blockCoord.z].height;
+  
+  if (currentHeight > 0) {
+    g_map[blockCoord.x][blockCoord.z].height = currentHeight - 1;
+    buildWallsFromMap();
+    showStatusMessage(`Block deleted at (${blockCoord.x}, ${blockCoord.z})`);
   } else {
-    showStatusMessage(`Cannot delete beyond the world limits`, true);
+    showStatusMessage('No block to delete here', true);
   }
 }
 
@@ -559,20 +592,20 @@ function keydown(ev){
     g_globalAngle += 5;
   }
   if (ev.keyCode == 32) { // Space key - add block or collect gem
+    ev.preventDefault(); // Prevent scrolling
     if (g_gameStarted) {
       collectGem(); // Try to collect a gem first
     } else {
       addBlock(); // Otherwise add a block
     }
-    ev.preventDefault(); // Prevent page scrolling
   }
   if (ev.keyCode == 8) { // Backspace key - delete block
-    deleteBlock();
     ev.preventDefault(); // Prevent browser back navigation
+    deleteBlock();
   }
   if (ev.keyCode == 71) { // G key - start/restart game
-    initializeGame();
     ev.preventDefault();
+    initializeGame();
   }
   renderScene();
 }
