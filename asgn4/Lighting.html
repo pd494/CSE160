@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Textured Cube with Normal Visualization</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+        background-color: #f0f0f0;
+      }
+      canvas {
+        border: 1px solid #000;
+        display: block;
+        margin-bottom: 20px;
+        position: relative;
+        background-color: #87CEEB;
+      }
+      .canvas-container {
+        position: relative;
+        display: inline-block;
+      }
+      #fps-counter {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background-color: rgba(0, 0, 0, 0.7);
+        color: white;
+        padding: 5px 10px;
+        border-radius: 5px;
+        font-size: 14px;
+        font-weight: bold;
+        z-index: 1000;
+      }
+      .controls {
+        background-color: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        max-width: 600px;
+        margin: 0 auto;
+      }
+      .control-group {
+        margin: 15px 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+      }
+      .control-group label {
+        font-weight: bold;
+        min-width: 120px;
+      }
+      .control-group input[type="range"] {
+        width: 200px;
+      }
+      .control-group span {
+        min-width: 40px;
+        text-align: center;
+      }
+      button {
+        padding: 10px 20px;
+        background-color: #4CAF50;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 16px;
+        transition: background-color 0.3s;
+      }
+      button:hover {
+        background-color: #45a049;
+      }
+      .instructions {
+        background-color: #e8f4fd;
+        padding: 15px;
+        border-radius: 8px;
+        margin: 20px auto;
+        max-width: 600px;
+        border-left: 4px solid #2196F3;
+      }
+      .instructions h3 {
+        margin-top: 0;
+        color: #1976D2;
+      }
+      .instructions ul {
+        margin-bottom: 0;
+      }
+      .instructions li {
+        margin: 5px 0;
+      }
+    </style>
+  </head>
+
+  <body onload="main()">
+    <h1 style="text-align: center; font-size: 32px; margin-bottom: 10px; color: #333;">
+      Textured Cube with Normal Visualization
+    </h1>
+    
+    <div style="text-align: center; margin-bottom: 20px;">
+      <div class="canvas-container">
+        <canvas id="webgl" width="800" height="600">
+          Please use a browser that supports "canvas"
+        </canvas>
+        <div id="fps-counter">FPS: 0</div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="control-group">
+        <button id="animToggleBtn">Animation: ON</button>
+        <button id="normalToggleBtn">Normal Visualization: OFF</button>
+      </div>
+      
+      <div class="control-group">
+        <label>Camera Angle:</label>
+        <input type="range" id="cameraAngleSlider" min="0" max="360" value="5">
+        <span id="cameraAngleValue">5°</span>
+      </div>
+
+      <!-- Light position controls -->
+      <div class="control-group">
+        <label>Light X Position:</label>
+        <input type="range" id="lightXSlider" min="-5" max="5" step="0.1" value="0">
+        <span id="lightXValue">0.0</span>
+      </div>
+      
+      <div class="control-group">
+        <label>Light Y Position:</label>
+        <input type="range" id="lightYSlider" min="-5" max="5" step="0.1" value="1.2">
+        <span id="lightYValue">1.2</span>
+      </div>
+      
+      <div class="control-group">
+        <label>Light Z Position:</label>
+        <input type="range" id="lightZSlider" min="-5" max="5" step="0.1" value="3">
+        <span id="lightZValue">3.0</span>
+      </div>
+
+      <!-- Light color controls -->
+      <div class="control-group">
+        <label>Light Red:</label>
+        <input type="range" id="lightRedSlider" min="0" max="1" step="0.1" value="1.0">
+        <span id="lightRedValue">1.0</span>
+      </div>
+      
+      <div class="control-group">
+        <label>Light Green:</label>
+        <input type="range" id="lightGreenSlider" min="0" max="1" step="0.1" value="1.0">
+        <span id="lightGreenValue">1.0</span>
+      </div>
+      
+      <div class="control-group">
+        <label>Light Blue:</label>
+        <input type="range" id="lightBlueSlider" min="0" max="1" step="0.1" value="1.0">
+        <span id="lightBlueValue">1.0</span>
+      </div>
+    </div>
+    
+    <div class="instructions">
+      <h3>Controls:</h3>
+      <ul>
+        <li><strong>Movement:</strong> WASD to move horizontally, R/T to move up/down</li>
+        <li><strong>Camera Control:</strong> Click in the canvas to activate mouse camera control</li>
+        <li><strong>Exit Mouse Control:</strong> Press ESC to exit mouse lock</li>
+        <li><strong>Animation:</strong> Use the button above to toggle animations (currently unused)</li>
+        <li><strong>Normal Visualization:</strong> Toggle to see surface normals as colors (RGB components)</li>
+        <li><strong>Camera Angle:</strong> Use the slider to rotate the global view</li>
+        <li><strong>Light Position:</strong> Use the sliders to adjust the light source position</li>
+        <li><strong>Light Color:</strong> Use the RGB sliders to change the light color</li>
+      </ul>
+      <p><strong>Features:</strong></p>
+      <ul>
+        <li>Textured cube positioned above ground plane</li>
+        <li>Ground plane with ground texture</li>
+        <li>Cube with wall texture (giraffe pattern)</li>
+        <li>Normal visualization mode shows normals as RGB colors</li>
+        <li>Camera controls with mouse look and keyboard movement</li>
+        <li>Sky blue background for realistic environment</li>
+        <li>Phong lighting model with ambient, diffuse, and specular components</li>
+      </ul>
+    </div>
+
+    <script src="./lib/webgl-utils.js"></script>
+    <script src="./lib/webgl-debug.js"></script>
+    <script src="./lib/cuon-utils.js"></script>
+    <script src="./lib/cuon-matrix.js"></script>
+    <script src="Point.js"></script>
+    <script src="Triangle.js"></script>
+    <script src="Circle.js"></script>
+    <script src="Cube.js"></script>
+    <script src="Sphere.js"></script>
+    <script src="Camera.js"></script>
+    <script src="Lighting.js"></script>
+  </body>
+</html> 
