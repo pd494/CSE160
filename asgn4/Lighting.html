@@ -89,6 +89,13 @@
       .instructions li {
         margin: 5px 0;
       }
+      /* Add color preview box for the color slider */
+      #colorPreview {
+        width: 30px;
+        height: 30px;
+        border: 1px solid #000;
+        border-radius: 4px;
+      }
     </style>
   </head>
 
@@ -110,6 +117,8 @@
       <div class="control-group">
         <button id="animToggleBtn">Animation: ON</button>
         <button id="normalToggleBtn">Normal Visualization: OFF</button>
+        <button id="lightToggleBtn" style="background-color: #4CAF50;">Light: ON</button>
+        <button id="spotlightToggleBtn" style="background-color: #f44336;">Spotlight: OFF</button>
       </div>
       
       <div class="control-group">
@@ -137,23 +146,30 @@
         <span id="lightZValue">3.0</span>
       </div>
 
-      <!-- Light color controls -->
+      <!-- Spotlight controls - keep only X direction -->
       <div class="control-group">
-        <label>Light Red:</label>
-        <input type="range" id="lightRedSlider" min="0" max="1" step="0.1" value="1.0">
-        <span id="lightRedValue">1.0</span>
+        <label>Spotlight Direction X:</label>
+        <input type="range" id="spotDirXSlider" min="-1" max="1" step="0.1" value="0">
+        <span id="spotDirXValue">0.0</span>
       </div>
       
       <div class="control-group">
-        <label>Light Green:</label>
-        <input type="range" id="lightGreenSlider" min="0" max="1" step="0.1" value="1.0">
-        <span id="lightGreenValue">1.0</span>
+        <label>Spotlight Cutoff Angle:</label>
+        <input type="range" id="spotCutoffSlider" min="0" max="90" step="1" value="15">
+        <span id="spotCutoffValue">15° (outer: 25°)</span>
       </div>
       
       <div class="control-group">
-        <label>Light Blue:</label>
-        <input type="range" id="lightBlueSlider" min="0" max="1" step="0.1" value="1.0">
-        <span id="lightBlueValue">1.0</span>
+        <label>Spotlight Falloff Range:</label>
+        <input type="range" id="spotExponentSlider" min="1" max="50" step="1" value="20">
+        <span id="spotExponentValue">20 (range: 10.0°)</span>
+      </div>
+
+      <!-- Single Light Color Control -->
+      <div class="control-group">
+        <label>Light Color:</label>
+        <input type="range" id="lightColorSlider" min="0" max="360" step="1" value="0">
+        <div id="colorPreview" style="background-color: rgb(255, 0, 0);"></div>
       </div>
     </div>
     
@@ -165,9 +181,22 @@
         <li><strong>Exit Mouse Control:</strong> Press ESC to exit mouse lock</li>
         <li><strong>Animation:</strong> Use the button above to toggle animations (currently unused)</li>
         <li><strong>Normal Visualization:</strong> Toggle to see surface normals as colors (RGB components)</li>
+        <li><strong>Light Toggle:</strong> Turn the light on and off</li>
+        <li><strong>Spotlight Toggle:</strong> Enable/disable theater-style spotlight mounted at the ceiling</li>
         <li><strong>Camera Angle:</strong> Use the slider to rotate the global view</li>
         <li><strong>Light Position:</strong> Use the sliders to adjust the light source position</li>
-        <li><strong>Light Color:</strong> Use the RGB sliders to change the light color</li>
+        <li><strong>Spotlight Direction:</strong> Adjust the spotlight horizontally from left to right</li>
+        <li><strong>Spotlight Cutoff:</strong> Control the size of the spotlight cone (smaller angle = more focused beam)</li>
+        <li><strong>Spotlight Falloff Range:</strong> Control how quickly light fades at the edge of the spotlight</li>
+        <li><strong>Light Color:</strong> Use the slider to change the light color</li>
+      </ul>
+      <p><strong>Theater Spotlight Tips:</strong> For the best theater spotlight effect, try:</p>
+      <ul>
+        <li>The spotlight is fixed at the ceiling pointing downward</li>
+        <li>Use the X direction slider to aim the spotlight horizontally</li>
+        <li>Use a small cutoff angle (10-20°) for a focused beam</li>
+        <li>Adjust the falloff range to control how quickly the light fades at the edge of the spotlight</li>
+        <li>The spotlight uses a smooth transition from full brightness inside the inner cone to darkness outside the outer cone</li>
       </ul>
       <p><strong>Features:</strong></p>
       <ul>
@@ -178,6 +207,7 @@
         <li>Camera controls with mouse look and keyboard movement</li>
         <li>Sky blue background for realistic environment</li>
         <li>Phong lighting model with ambient, diffuse, and specular components</li>
+        <li>Theater-style spotlight fixed at the ceiling, adjustable horizontally</li>
       </ul>
     </div>
 
