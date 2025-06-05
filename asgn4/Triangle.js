@@ -42,7 +42,7 @@ function drawTriangle3D(vertices) {
   gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
   
   // Write data into the buffer object
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.DYNAMIC_DRAW);
   
   // Assign the buffer object to a_Position variable
   gl.vertexAttribPointer(a_Position, 3, gl.FLOAT, false, 0, 0); // Changed from 2 to 3 for 3D
@@ -75,7 +75,7 @@ function drawTriangle3DUV(vertices, uv) {
   gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
   
   // Write data into the buffer object
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.DYNAMIC_DRAW);
   
   // Assign the buffer object to a_Position variable
   gl.vertexAttribPointer(a_Position, 3, gl.FLOAT, false, 0, 0); // Changed from 2 to 3 for 3D
@@ -94,7 +94,7 @@ function drawTriangle3DUV(vertices, uv) {
   gl.bindBuffer(gl.ARRAY_BUFFER, uvBuffer);
   
   // Write data into the buffer object
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(uv), gl.STATIC_DRAW);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(uv), gl.DYNAMIC_DRAW);
   
   // Assign the buffer object to a_UV variable
   gl.vertexAttribPointer(a_UV, 2, gl.FLOAT, false, 0, 0);
@@ -128,7 +128,7 @@ function drawTriangle3DUVNormal(vertices, uv, normals) {
   gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
   
   // Write data into the buffer object
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.DYNAMIC_DRAW);
   
   // Assign the buffer object to a_Position variable
   gl.vertexAttribPointer(a_Position, 3, gl.FLOAT, false, 0, 0);
@@ -147,7 +147,7 @@ function drawTriangle3DUVNormal(vertices, uv, normals) {
   gl.bindBuffer(gl.ARRAY_BUFFER, uvBuffer);
   
   // Write data into the buffer object
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(uv), gl.STATIC_DRAW);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(uv), gl.DYNAMIC_DRAW);
   
   // Assign the buffer object to a_UV variable
   gl.vertexAttribPointer(a_UV, 2, gl.FLOAT, false, 0, 0);
@@ -166,7 +166,7 @@ function drawTriangle3DUVNormal(vertices, uv, normals) {
   gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
   
   // Write data into the buffer object
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(normals), gl.STATIC_DRAW);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(normals), gl.DYNAMIC_DRAW);
   
   // Assign the buffer object to a_Normal variable
   gl.vertexAttribPointer(a_Normal, 3, gl.FLOAT, false, 0, 0);
